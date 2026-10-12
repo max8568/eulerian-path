@@ -119,7 +119,8 @@ export function gameScreen(root, levelData, nav) {
   // ---- rendering
   function el(tag, attrs, parent) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent.appendChild(n); return n; }
   const ptsAttr = pts => pts.map(p => p.join(',')).join(' ');
-  const stuck = () => !done && !busy && cur != null && undrawnAt(fig, drawn, cur).length === 0;
+  const allDrawn = () => drawn.every(Boolean);
+  const stuck = () => !done && !busy && cur != null && !allDrawn() && undrawnAt(fig, drawn, cur).length === 0;
   function render() {
     const gE = $('.g-edges'), gP = $('.g-part'), gV = $('.g-verts');
     gE.textContent = gP.textContent = gV.textContent = '';
@@ -164,7 +165,6 @@ export function gameScreen(root, levelData, nav) {
     prog.clear(); active = null;
     sounds.line(hist.length - 1);
     try { navigator.vibrate && navigator.vibrate(12); } catch (x) { /* not supported */ }
-    if (drawn.every(Boolean)) win();
   }
   function win() {
     done = true; dragging = false;
@@ -262,7 +262,8 @@ export function gameScreen(root, levelData, nav) {
     if (active != null && (bestT >= 0.9 || (bestT >= 0.5 && dist(p, V[otherEnd(fig, active, cur)]) <= R * 0.8))) commit(active);
     render();
   });
-  const endDrag = () => { if (!dragging) return; dragging = false; prog.clear(); active = null; render(); };
+  // the star and confetti wait until the finger lifts after the last line
+  const endDrag = () => { if (!dragging) return; dragging = false; prog.clear(); active = null; if (allDrawn()) win(); render(); };
   svg.addEventListener('pointerup', endDrag);
   svg.addEventListener('pointercancel', endDrag);
 
