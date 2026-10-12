@@ -18,24 +18,24 @@ export function gameScreen(root, levelData, nav) {
   root.innerHTML = `
     <div class="screen game" style="--chapter:${chapterColor(chapter)}">
       <header class="g-top">
-        <button class="round" data-act="back" aria-label="回選關">${ICONS.grid}</button>
-        <div class="g-title"><span class="chip"><span class="emo">${chapterEmoji(chapter)}</span>${chapterName(chapter)}</span><span class="lvl">第 ${level} 關</span></div>
-        <button class="round skip" data-act="skip" aria-label="跳過（按兩下）">${ICONS.skip}</button>
+        <button class="round" data-act="back" aria-label="Back to levels">${ICONS.grid}</button>
+        <div class="g-title"><span class="chip"><span class="emo">${chapterEmoji(chapter)}</span>${chapterName(chapter)}</span><span class="lvl">Level ${level}</span></div>
+        <button class="round skip" data-act="skip" aria-label="Skip (tap twice)">${ICONS.skip}</button>
       </header>
       <div class="g-stage">
-        <svg class="board" aria-label="畫圖區"><g class="g-edges"></g><g class="g-part"></g><g class="g-fx"></g><g class="g-verts"></g></svg>
+        <svg class="board" aria-label="Drawing area"><g class="g-edges"></g><g class="g-part"></g><g class="g-fx"></g><g class="g-verts"></g></svg>
         <div class="win" hidden>
           <div class="win-box">
             ${ICONS.star}
-            <button class="big" data-act="next">下一關 ▶</button>
-            <button class="small" data-act="back">回選關</button>
+            <button class="big" data-act="next">Next ▶</button>
+            <button class="small" data-act="back">Levels</button>
           </div>
         </div>
       </div>
       <nav class="g-tools">
-        <button class="tool" data-act="undo" aria-label="退一步">${ICONS.undo}</button>
-        <button class="tool" data-act="restart" aria-label="重來">${ICONS.restart}</button>
-        <button class="tool hint" data-act="hint" aria-label="提示">${ICONS.hint}<span class="cool"></span></button>
+        <button class="tool" data-act="undo" aria-label="Undo">${ICONS.undo}</button>
+        <button class="tool" data-act="restart" aria-label="Start over">${ICONS.restart}</button>
+        <button class="tool hint" data-act="hint" aria-label="Hint">${ICONS.hint}<span class="cool"></span></button>
       </nav>
     </div>`;
   const $ = sel => root.querySelector(sel);

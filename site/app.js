@@ -7,7 +7,7 @@ import { VERSION } from './version.js';
 
 const root = document.getElementById('app');
 // the version in the bottom-left corner, so it is easy to see whether the device has the latest one
-document.body.insertAdjacentHTML('beforeend', `<div class="version">${VERSION === 'dev' ? '開發中' : 'v' + VERSION}</div>`);
+document.body.insertAdjacentHTML('beforeend', `<div class="version">${VERSION === 'dev' ? 'dev' : 'v' + VERSION}</div>`);
 let LEVELS = null, cleanup = null;
 
 const nav = {
@@ -47,13 +47,13 @@ function chaptersScreen() {
   root.innerHTML = `
     <div class="screen menu">
       <header class="m-top">
-        <button class="round avatar-btn" data-act="avatar" aria-label="換人" ${many ? '' : 'disabled'}>${store.profile().animal}</button>
+        <button class="round avatar-btn" data-act="avatar" aria-label="Switch player" ${many ? '' : 'disabled'}>${store.profile().animal}</button>
         <h1>eulerian-path</h1>
-        <button class="round" data-act="parent" aria-label="家長設定">${ICONS.gear}</button>
+        <button class="round" data-act="parent" aria-label="Parent settings">${ICONS.gear}</button>
       </header>
       <div class="chapters">${THEMES.map((_, i) => {
         const ch = i + 1, open = store.isUnlocked(firstLevel(ch));
-        return `<button class="chapter${open ? '' : ' locked'}" data-ch="${ch}" style="--c:${chapterColor(ch)}" ${open ? '' : 'disabled'} aria-label="第 ${ch} 章 ${chapterName(ch)}">
+        return `<button class="chapter${open ? '' : ' locked'}" data-ch="${ch}" style="--c:${chapterColor(ch)}" ${open ? '' : 'disabled'} aria-label="Chapter ${ch} ${chapterName(ch)}">
           <span class="emo">${open ? chapterEmoji(ch) : ICONS.lock}</span>
           <span class="ch-name">${ch}. ${chapterName(ch)}</span>
           <span class="ch-stars">★ ${starsIn(ch)}/${LEVELS_PER_CHAPTER}</span>
@@ -72,12 +72,12 @@ function levelsScreen(chapter) {
     const l = first + i;
     const state = store.isCleared(l) ? 'cleared' : store.isSkipped(l) ? 'skipped' : l === newest ? 'newest' : store.isUnlocked(l) ? 'open' : 'locked';
     const mark = state === 'cleared' ? '★' : state === 'skipped' ? '☆' : state === 'locked' ? ICONS.lock : '';
-    return `<button class="cell ${state}" data-level="${l}" ${state === 'locked' ? 'disabled' : ''} aria-label="第 ${l} 關"><span class="num">${l}</span><span class="mark">${mark}</span></button>`;
+    return `<button class="cell ${state}" data-level="${l}" ${state === 'locked' ? 'disabled' : ''} aria-label="Level ${l}"><span class="num">${l}</span><span class="mark">${mark}</span></button>`;
   }).join('');
   root.innerHTML = `
     <div class="screen menu" style="--chapter:${chapterColor(chapter)}">
       <header class="m-top">
-        <button class="round" data-act="back" aria-label="回章節">${ICONS.back}</button>
+        <button class="round" data-act="back" aria-label="Back to chapters">${ICONS.back}</button>
         <h1><span class="chip"><span class="emo">${chapterEmoji(chapter)}</span>${chapterName(chapter)}</span></h1>
         <span class="round-space"></span>
       </header>
@@ -181,7 +181,7 @@ function parentPanel(onClose) {
   try {
     LEVELS = await (await fetch('levels.json')).json();
   } catch (e) {
-    root.innerHTML = '<div class="screen loading">關卡載入失敗，請連上網路後重新打開。</div>';
+    root.innerHTML = '<div class="screen loading">Could not load the levels. Connect to the internet and open the game again.</div>';
     return;
   }
   window.__app = { nav, store, levels: LEVELS };

@@ -10,5 +10,5 @@ export const ICONS = {
   skip: '<svg viewBox="0 0 28 28" fill="currentColor" aria-hidden="true"><path d="M4 5l10 9-10 9zM14 5l10 9-10 9z"/></svg>',
   gear: s('<circle cx="20" cy="20" r="5"/><path d="M20 4v5M20 31v5M4 20h5M31 20h5M8.7 8.7l3.5 3.5M27.8 27.8l3.5 3.5M8.7 31.3l3.5-3.5M27.8 12.2l3.5-3.5"/>'),
   lock: s('<rect x="9" y="18" width="22" height="16" rx="3"/><path d="M14 18v-5a6 6 0 0 1 12 0v5"/>'),
-  star: '<svg class="star" viewBox="0 0 100 100" aria-label="過關"><path d="M50 6l13 28 30 3-23 20 7 30-27-16-27 16 7-30L7 37l30-3z" fill="#FFC93C" stroke="#4A3B52" stroke-width="4" stroke-linejoin="round"/></svg>',
+  star: '<svg class="star" viewBox="0 0 100 100" aria-label="Cleared"><path d="M50 6l13 28 30 3-23 20 7 30-27-16-27 16 7-30L7 37l30-3z" fill="#FFC93C" stroke="#4A3B52" stroke-width="4" stroke-linejoin="round"/></svg>',
 };

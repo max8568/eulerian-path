@@ -1,9 +1,9 @@
 // Chapter themes, colours and avatar animals (SPEC.md §4).
 export const THEMES = [
-  ['形狀', '🔺'], ['動物', '🐸'], ['家裡的東西', '🏠'], ['大自然', '🌳'], ['交通工具', '🚗'],
-  ['海洋', '🐳'], ['食物', '🍎'], ['昆蟲', '🐞'], ['建築', '🏰'], ['樂器', '🎸'],
-  ['運動', '⚽'], ['天氣', '🌈'], ['恐龍', '🦕'], ['農場', '🐮'], ['衣服', '👕'],
-  ['廚房', '🍳'], ['節日', '🎄'], ['太空', '🚀'], ['遊樂園', '🎡'], ['綜合', '👑'],
+  ['Shapes', '🔺'], ['Animals', '🐸'], ['At Home', '🏠'], ['Nature', '🌳'], ['Vehicles', '🚗'],
+  ['Ocean', '🐳'], ['Food', '🍎'], ['Bugs', '🐞'], ['Buildings', '🏰'], ['Music', '🎸'],
+  ['Sports', '⚽'], ['Weather', '🌈'], ['Dinosaurs', '🦕'], ['Farm', '🐮'], ['Clothes', '👕'],
+  ['Kitchen', '🍳'], ['Holidays', '🎄'], ['Space', '🚀'], ['Theme Park', '🎡'], ['Mixed', '👑'],
 ];
 
 // chapter is 1-based
