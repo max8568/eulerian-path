@@ -48,7 +48,7 @@ function chaptersScreen() {
     <div class="screen menu">
       <header class="m-top">
         <button class="round avatar-btn" data-act="avatar" aria-label="換人" ${many ? '' : 'disabled'}>${store.profile().animal}</button>
-        <h1>一筆畫</h1>
+        <h1>eulerian-path</h1>
         <button class="round" data-act="parent" aria-label="家長設定">${ICONS.gear}</button>
       </header>
       <div class="chapters">${THEMES.map((_, i) => {
@@ -177,7 +177,7 @@ function parentPanel(onClose) {
 
 // ---- boot
 (async () => {
-  root.innerHTML = '<div class="screen loading">一筆畫</div>';
+  root.innerHTML = '<div class="screen loading">eulerian-path</div>';
   try {
     LEVELS = await (await fetch('levels.json')).json();
   } catch (e) {
