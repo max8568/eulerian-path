@@ -215,7 +215,7 @@
   - 檢查 `levels.json`：剛好 1000 關、每關都畫得完、每 10 關是形狀關、沒有重複、每章的條件都符合
 - **可以離線玩、加入主畫面**：
   - 加一個 `manifest.webmanifest`（名稱「一筆畫」、圖示 180×180 和 512×512、`display: standalone`）。
-  - 加一個 service worker，把遊戲的所有檔案存在裝置上。打開過一次之後，沒網路也能玩；遊戲更新後，下次打開時換成新版。
+  - 加一個 service worker，把遊戲的所有檔案存在裝置上。打開過一次之後，沒網路也能玩；遊戲更新後，有網路時一打開就換成新版。
   - iPad 要另外加 `apple-touch-icon`。
   - 開發時用 `npm run serve` 在本機開網站；網址後面加 `?nosw` 就不會啟用 service worker，改了檔案重新整理就看得到。
 - **建議的資料夾**：
@@ -229,6 +229,7 @@
 - **repo**：`max8568/eulerian-path`。公開，2026-10-12 建立時是空的，預設分支 `main`。本機的專案資料夾還不是 git repo，要先建立並連過去。
 - **帳號**：這台電腦有兩個 gh 帳號，目前作用中的是公司帳號 `igs-hanhongchen`。推送前要先問家長，得到同意後才切換到個人帳號 `max8568`，不能自己換。push 卡住或出現 403 時，回報錯誤，不要一直重試。
 - **網站**：GitHub Pages，來源設成 GitHub Actions。每次推到 `main`，由 workflow 只把 `site/` 發布上去（用 `actions/upload-pages-artifact` 和 `actions/deploy-pages`）。網站一定要是 https，service worker 才能運作；GitHub Pages 本來就是 https。
+- **版本號**：每個畫面的左下角都有版本號，用來看裝置上是不是最新版。發布時 workflow 把 `site/version.js` 裡的 `'dev'` 換成 `main` 上的 commit 數，所以每推一次就加 1。在本機開的網站顯示「開發中」。
 
 ## 10. 建議的實作順序
 

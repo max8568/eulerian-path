@@ -33,6 +33,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the whole history, to count the commits
+      # the version shown in the corner: the number of commits on main, so each change adds 1
+      - run: |
+          sed -i "s/VERSION = 'dev'/VERSION = $(git rev-list --count HEAD)/" site/version.js
+          grep -E "VERSION = [0-9]+;" site/version.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

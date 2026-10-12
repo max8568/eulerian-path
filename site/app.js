@@ -3,8 +3,11 @@ import { gameScreen } from './game.js';
 import * as store from './store.js';
 import { chapterColor, chapterName, chapterEmoji, ANIMALS, LEVELS_PER_CHAPTER, LAST_LEVEL, THEMES } from './theme.js';
 import { ICONS } from './icons.js';
+import { VERSION } from './version.js';
 
 const root = document.getElementById('app');
+// the version in the bottom-left corner, so it is easy to see whether the device has the latest one
+document.body.insertAdjacentHTML('beforeend', `<div class="version">${VERSION === 'dev' ? '開發中' : 'v' + VERSION}</div>`);
 let LEVELS = null, cleanup = null;
 
 const nav = {
@@ -187,5 +190,10 @@ function parentPanel(onClose) {
 
 // ?nosw skips the offline copy, so a page under development always loads the latest files
 if ('serviceWorker' in navigator && location.protocol !== 'file:' && !location.search.includes('nosw')) {
+  // a new version took over while this page was opening: reload once so the new files are used now
+  if (navigator.serviceWorker.controller) {
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload(); } });
+  }
   navigator.serviceWorker.register('sw.js').catch(() => { /* still playable online */ });
 }
