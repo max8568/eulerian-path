@@ -1,0 +1,12 @@
+{
+  "name": "eulerian-path",
+  "private": true,
+  "type": "module",
+  "description": "一筆畫網頁遊戲，給家裡 6–10 歲的小朋友玩。規格見 SPEC.md。",
+  "scripts": {
+    "test": "node --test",
+    "shapes": "node tools/check-shapes.mjs",
+    "levels": "node tools/generate-levels.mjs",
+    "serve": "node tools/serve.mjs"
+  }
+}

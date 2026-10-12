@@ -1,0 +1,445 @@
+<title>一筆畫操作雛形</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&display=swap">
+<style>
+/* Layout: one full-height screen — figure picker on top, drawing stage in the middle, three big buttons (bottom or top). Single deliberate light look: pale drawing-paper blue. */
+:root {
+  --paper: #EAF3F7;
+  --ink: #1F3442;
+  --todo: #B6C8D3;
+  --draw: #F2542D;
+  --here: #FFC93C;
+  --hint: #1FA463;
+  --panel: #FFFFFF;
+  --soft: #D5E4EC;
+  --font-ui: "Fredoka", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--font-ui);
+  display: flex; flex-direction: column; overflow: hidden;
+  user-select: none; -webkit-user-select: none; overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; }
+#figs { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.fig-btn, .gear {
+  width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--soft);
+  background: var(--panel); color: var(--ink); font: 600 18px var(--font-ui); cursor: pointer;
+}
+.fig-btn[aria-pressed="true"] { border-color: var(--ink); }
+.fig-btn.done { background: var(--here); }
+.gear { border-color: transparent; background: transparent; font-size: 22px; }
+#stage { flex: 1; position: relative; min-height: 0; }
+#svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+#mode-tag { position: absolute; right: 16px; top: 4px; font-size: 12px; opacity: .55; pointer-events: none; }
+#tools { display: flex; justify-content: center; gap: 22px; padding: 12px 16px 18px; }
+body.tools-top #tools { order: -1; padding: 12px 16px 4px; }
+.tool {
+  position: relative; overflow: hidden;
+  width: 76px; height: 76px; border-radius: 24px; border: 0; cursor: pointer;
+  background: var(--panel); color: var(--ink); box-shadow: 0 4px 0 var(--soft);
+  display: grid; place-items: center;
+}
+.tool:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--soft); }
+.tool:focus-visible, .fig-btn:focus-visible, .gear:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.tool svg { width: 40px; height: 40px; }
+#hint-btn { color: var(--hint); }
+#hint-btn:disabled { opacity: .45; cursor: default; }
+#hint-btn .cool { position: absolute; left: 0; bottom: 0; height: 6px; width: 0; background: var(--hint); }
+#hint-btn.cooling .cool { animation: fill 5s linear forwards; }
+@keyframes fill { to { width: 100%; } }
+#hint-btn.bounce { animation: bounce 1s ease-in-out infinite; }
+@keyframes bounce { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-14px); } 55% { transform: translateY(0); } 70% { transform: translateY(-6px); } }
+
+/* drawing */
+.e-todo { stroke: var(--todo); stroke-width: 10; fill: none; stroke-linecap: round; }
+.e-done { stroke: var(--draw); stroke-width: 12; fill: none; stroke-linecap: round; }
+.e-part { stroke: var(--draw); stroke-width: 12; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: .75; }
+.band { stroke: var(--draw); stroke-width: 6; stroke-dasharray: 2 12; stroke-linecap: round; opacity: .7; }
+.v { fill: var(--panel); stroke: var(--ink); stroke-width: 4; }
+.v-here { fill: var(--here); stroke: var(--ink); stroke-width: 4; }
+.touch { fill: var(--draw); opacity: .10; }
+.ring { fill: none; stroke: var(--here); stroke-width: 5; transform-box: fill-box; transform-origin: center; animation: ring 1.4s ease-out infinite; }
+@keyframes ring { from { transform: scale(1); opacity: .9; } to { transform: scale(2.1); opacity: 0; } }
+.nudge { animation: nudge .5s ease-in-out 2; transform-box: fill-box; transform-origin: center; }
+@keyframes nudge { 50% { transform: scale(1.5); } }
+.hint-line { stroke: var(--hint); stroke-width: 14; fill: none; stroke-linecap: round; animation: trace 1s ease-in-out 2 forwards; }
+@keyframes trace { to { stroke-dashoffset: 0; } }
+.hint-dot { fill: none; stroke: var(--hint); stroke-width: 6; transform-box: fill-box; transform-origin: center; animation: hdot .8s ease-in-out 3; }
+@keyframes hdot { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.6); opacity: .35; } }
+
+/* overlays */
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(234,243,247,.82); }
+#win .box { display: grid; justify-items: center; gap: 18px; }
+#win .star { width: 140px; height: 140px; animation: pop .5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes pop { from { transform: scale(.2); } to { transform: scale(1); } }
+#next-btn { font: 600 22px var(--font-ui); padding: 14px 32px; border-radius: 22px; border: 0; background: var(--ink); color: var(--panel); cursor: pointer; }
+#panel { position: fixed; inset: 0; background: rgba(31,52,66,.35); display: grid; place-items: center; padding: 16px; z-index: 5; }
+#panel .sheet { background: var(--panel); border-radius: 18px; padding: 18px 20px; width: min(420px, 100%); max-height: 100%; overflow: auto; display: grid; gap: 14px; font-size: 15px; }
+#panel h2 { margin: 0; font-size: 18px; }
+#panel fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
+#panel legend { font-weight: 600; margin-bottom: 4px; }
+#panel label { display: flex; gap: 8px; align-items: center; }
+#panel .stats { background: var(--paper); border-radius: 12px; padding: 10px 12px; font-variant-numeric: tabular-nums; line-height: 1.7; }
+#close-panel { justify-self: end; font: 600 16px var(--font-ui); padding: 8px 20px; border-radius: 12px; border: 0; background: var(--ink); color: var(--panel); cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .ring, #hint-btn.bounce, #win .star { animation: none; } }
+</style>
+
+<header>
+  <div id="figs" role="group" aria-label="選圖"></div>
+  <button class="gear" id="gear" aria-label="家長設定">⚙</button>
+</header>
+
+<div id="stage">
+  <svg id="svg" aria-label="畫圖區">
+    <g id="g-touch"></g><g id="g-edges"></g><g id="g-part"></g><g id="g-fx"></g><g id="g-verts"></g>
+  </svg>
+  <div id="mode-tag"></div>
+  <div class="overlay" id="win" hidden>
+    <div class="box">
+      <svg class="star" viewBox="0 0 100 100" aria-label="過關"><path d="M50 6l13 28 30 3-23 20 7 30-27-16-27 16 7-30L7 37l30-3z" fill="#FFC93C" stroke="#1F3442" stroke-width="4" stroke-linejoin="round"/></svg>
+      <button id="next-btn">下一張 ▶</button>
+    </div>
+  </div>
+</div>
+
+<div id="tools">
+  <button class="tool" id="undo-btn" aria-label="退一步">
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 10 6 18l8 8"/><path d="M6 18h18a10 10 0 0 1 0 20h-6"/></svg>
+  </button>
+  <button class="tool" id="restart-btn" aria-label="重來">
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 20a12 12 0 1 1-4-9"/><path d="M30 4v8h-8"/></svg>
+  </button>
+  <button class="tool" id="hint-btn" aria-label="提示">
+    <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 27c0-4-5-6-5-13a11 11 0 0 1 22 0c0 7-5 9-5 13z"/><path d="M15 33h10M17 38h6"/></svg>
+    <span class="cool"></span>
+  </button>
+</div>
+
+<div id="panel" hidden>
+  <div class="sheet">
+    <h2>家長設定</h2>
+    <fieldset>
+      <legend>操作方式</legend>
+      <label><input type="radio" name="mode" id="mode-trace" value="trace"> 沿著整條線拖過去</label>
+      <label><input type="radio" name="mode" id="mode-dot" value="dot"> 從一個點拖到下一個點就算</label>
+    </fieldset>
+    <fieldset>
+      <legend>觸控範圍（點的周圍多遠內算碰到）</legend>
+      <label><input type="radio" name="size" id="size-s" value="22"> 小（半徑 22 px）</label>
+      <label><input type="radio" name="size" id="size-m" value="34"> 中（半徑 34 px）</label>
+      <label><input type="radio" name="size" id="size-l" value="48"> 大（半徑 48 px）</label>
+      <label><input type="checkbox" id="show-touch"> 把觸控範圍畫出來</label>
+    </fieldset>
+    <fieldset>
+      <legend>線旁邊多遠內算在線上（沿著線拖時用）</legend>
+      <label><input type="radio" name="tol" id="tol-1" value="1"> 跟點的觸控範圍一樣</label>
+      <label><input type="radio" name="tol" id="tol-15" value="1.5"> 點的 1.5 倍</label>
+      <label><input type="radio" name="tol" id="tol-2" value="2"> 點的 2 倍</label>
+    </fieldset>
+    <fieldset>
+      <legend>按鈕位置</legend>
+      <label><input type="radio" name="tools" id="tools-bottom" value="bottom"> 下方</label>
+      <label><input type="radio" name="tools" id="tools-top" value="top"> 上方</label>
+    </fieldset>
+    <div class="stats" id="stats"></div>
+    <button id="close-panel">好了</button>
+  </div>
+</div>
+
+<script>
+// ---- figures: points in a unit square (y down); edge [a, b, bulge] — bulge ≠ 0 makes a curved line
+const pent = (k, r) => { const a = (-90 + 72 * k) * Math.PI / 180; return [.5 + r * Math.cos(a), .54 + r * Math.sin(a)]; };
+const FIGS = [
+  { name: '三角形', pts: [[.5,.12],[.12,.85],[.88,.85]], edges: [[0,1],[1,2],[2,0]] },
+  { name: '蝴蝶結', pts: [[.5,.5],[.1,.15],[.1,.85],[.9,.15],[.9,.85]], edges: [[0,1],[1,2],[2,0],[0,3],[3,4],[4,0]] },
+  { name: '啞鈴', pts: [[.08,.25],[.08,.75],[.33,.5],[.67,.5],[.92,.25],[.92,.75]], edges: [[0,1],[1,2],[2,0],[2,3],[3,4],[4,5],[5,3]] },
+  { name: '房子', pts: [[.15,.9],[.85,.9],[.85,.42],[.15,.42],[.5,.08]], edges: [[0,1],[1,2],[2,3],[3,0],[3,4],[4,2],[0,2],[1,3]] },
+  { name: '鼓起的正方形', pts: [[.18,.32],[.82,.32],[.82,.88],[.18,.88]], edges: [[0,1],[0,1,-.55],[1,2],[2,3],[3,0]] },
+  { name: '眼睛', pts: [[.08,.5],[.92,.5]], edges: [[0,1,-.65],[0,1],[0,1,.65]] },
+  { name: '星星', pts: [0,1,2,3,4].map(k => pent(k, .42)), edges: [[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3],[3,0]] },
+];
+
+// ---- settings (remembered on this device only)
+const DEF = { mode: 'trace', size: 34, tol: 2, tools: 'bottom', showTouch: false };
+let S = { ...DEF };
+try { S = { ...DEF, ...JSON.parse(localStorage.getItem('euler-proto') || '{}') }; } catch (e) {}
+const saveS = () => { try { localStorage.setItem('euler-proto', JSON.stringify(S)); } catch (e) {} };
+
+// ---- state
+const $ = id => document.getElementById(id);
+const svg = $('svg');
+const NS = 'http://www.w3.org/2000/svg';
+let figIdx = 0, V = [], E = [], drawn = [], hist = [], cur = null;
+let dragging = false, prog = new Map(), active = null, finger = null, trail = [];
+let busy = false, cooling = false, done = false, cleared = new Set();
+let stats, t0 = null, tEnd = null;
+
+const R = () => +S.size;
+const TOL = () => R() * S.tol;
+const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+const other = (e, v) => (E[e].a === v ? E[e].b : E[e].a);
+const incident = v => E.map((_, i) => i).filter(i => !drawn[i] && (E[i].a === v || E[i].b === v));
+
+// ---- geometry
+function layout() {
+  const w = svg.clientWidth, h = svg.clientHeight;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const pad = Math.max(R(), 30), size = Math.min(w, h) - 2 * pad;
+  const ox = (w - size) / 2, oy = (h - size) / 2;
+  const f = FIGS[figIdx];
+  V = f.pts.map(([x, y]) => [ox + x * size, oy + y * size]);
+  E = f.edges.map(([a, b, bulge = 0]) => {
+    const A = V[a], B = V[b], dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy);
+    let pts, d;
+    if (!bulge) { pts = [A, B]; d = `M${A}L${B}`; }
+    else {
+      const C = [(A[0] + B[0]) / 2 - dy / L * bulge * L, (A[1] + B[1]) / 2 + dx / L * bulge * L];
+      pts = [];
+      for (let i = 0; i <= 32; i++) { const t = i / 32, u = 1 - t; pts.push([u*u*A[0] + 2*u*t*C[0] + t*t*B[0], u*u*A[1] + 2*u*t*C[1] + t*t*B[1]]); }
+      d = `M${A}Q${C} ${B}`;
+    }
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + dist(pts[i - 1], pts[i]));
+    return { a, b, pts, cum, len: cum[cum.length - 1], d };
+  });
+}
+// polyline of edge e walked starting from vertex v
+function poly(e, v) {
+  const ed = E[e];
+  if (ed.a === v) return ed;
+  const pts = ed.pts.slice().reverse(), cum = pts.map((_, i) => ed.len - ed.cum[ed.pts.length - 1 - i]);
+  return { pts, cum, len: ed.len };
+}
+function nearest(pl, p) {
+  let best = { d: Infinity, t: 0 };
+  for (let i = 0; i < pl.pts.length - 1; i++) {
+    const a = pl.pts[i], b = pl.pts[i + 1], vx = b[0] - a[0], vy = b[1] - a[1], l2 = vx * vx + vy * vy || 1;
+    const u = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / l2));
+    const d = Math.hypot(p[0] - a[0] - u * vx, p[1] - a[1] - u * vy);
+    if (d < best.d) best = { d, t: (pl.cum[i] + u * Math.sqrt(l2)) / pl.len };
+  }
+  return best;
+}
+function partial(pl, t) {
+  const target = t * pl.len, out = [pl.pts[0]];
+  for (let i = 1; i < pl.pts.length; i++) {
+    if (pl.cum[i] <= target) { out.push(pl.pts[i]); continue; }
+    const seg = pl.cum[i] - pl.cum[i - 1], u = (target - pl.cum[i - 1]) / seg, a = pl.pts[i - 1], b = pl.pts[i];
+    out.push([a[0] + u * (b[0] - a[0]), a[1] + u * (b[1] - a[1])]);
+    break;
+  }
+  return out;
+}
+
+// ---- one-stroke logic: can every remaining line still be drawn starting from vertex c?
+function solvable(dr, c) {
+  const deg = V.map(() => 0); let m = 0;
+  E.forEach((e, i) => { if (!dr[i]) { deg[e.a]++; deg[e.b]++; m++; } });
+  if (m === 0 || c == null) return true;
+  if (deg[c] === 0) return false;
+  const seen = new Set([c]), stack = [c];
+  while (stack.length) {
+    const x = stack.pop();
+    E.forEach((e, i) => {
+      if (dr[i]) return;
+      const y = e.a === x ? e.b : e.b === x ? e.a : -1;
+      if (y >= 0 && !seen.has(y)) { seen.add(y); stack.push(y); }
+    });
+  }
+  if (deg.some((d, v) => d > 0 && !seen.has(v))) return false;
+  const odd = deg.map((d, v) => (d % 2 ? v : -1)).filter(v => v >= 0);
+  return odd.length === 0 || (odd.length === 2 && odd.includes(c));
+}
+function validStarts() {
+  const deg = V.map(() => 0);
+  E.forEach(e => { deg[e.a]++; deg[e.b]++; });
+  const odd = deg.map((d, v) => (d % 2 ? v : -1)).filter(v => v >= 0);
+  return odd.length === 2 ? odd : V.map((_, v) => v);
+}
+function nextEdge() {
+  return incident(cur).find(e => { const d2 = drawn.slice(); d2[e] = true; return solvable(d2, other(e, cur)); });
+}
+
+// ---- rendering
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  parent.appendChild(n); return n;
+}
+const ptsAttr = pts => pts.map(p => p.join(',')).join(' ');
+function render() {
+  const gT = $('g-touch'), gE = $('g-edges'), gP = $('g-part'), gV = $('g-verts');
+  gT.innerHTML = gE.innerHTML = gP.innerHTML = gV.innerHTML = '';
+  if (S.showTouch) V.forEach(p => el('circle', { cx: p[0], cy: p[1], r: R(), class: 'touch' }, gT));
+  E.forEach((e, i) => el('path', { d: e.d, class: drawn[i] ? 'e-done' : 'e-todo' }, gE));
+  if (dragging && cur != null) {
+    if (S.mode === 'trace' && active != null) el('polyline', { points: ptsAttr(partial(poly(active, cur), prog.get(active))), class: 'e-part' }, gP);
+    if (S.mode === 'dot' && finger) el('line', { x1: V[cur][0], y1: V[cur][1], x2: finger[0], y2: finger[1], class: 'band' }, gP);
+  }
+  V.forEach((p, v) => {
+    if (v === cur) {
+      if (!done) el('circle', { cx: p[0], cy: p[1], r: 16, class: 'ring' }, gV);
+      el('circle', { cx: p[0], cy: p[1], r: 16, class: 'v-here', id: 'here' }, gV);
+    } else el('circle', { cx: p[0], cy: p[1], r: 13, class: 'v' }, gV);
+  });
+  $('mode-tag').textContent = `${S.mode === 'trace' ? `沿著線拖 · 線 ${Math.round(TOL())}px` : '點到點'} · 點 ${S.size}px`;
+  $('hint-btn').classList.toggle('bounce', !done && !busy && cur != null && incident(cur).length === 0);
+  $('win').hidden = !done;
+  document.querySelectorAll('.fig-btn').forEach((b, i) => { b.setAttribute('aria-pressed', i === figIdx); b.classList.toggle('done', cleared.has(i)); });
+  renderStats();
+}
+function renderStats() {
+  const secs = t0 ? Math.round(((tEnd || Date.now()) - t0) / 1000) : 0;
+  $('stats').innerHTML = `這張圖（${FIGS[figIdx].name}）目前的紀錄：<br>花了 ${secs} 秒 · 退一步 ${stats.undo} 次 · 重來 ${stats.restart} 次 · 提示 ${stats.hint} 次${done ? ' · 已過關' : ''}`;
+}
+
+// ---- actions
+function loadFig(i) {
+  figIdx = i; drawn = FIGS[i].edges.map(() => false); hist = []; cur = null; done = false;
+  stats = { undo: 0, restart: 0, hint: 0 }; t0 = tEnd = null;
+  $('g-fx').innerHTML = '';
+  layout(); render();
+}
+function commit(e) {
+  drawn[e] = true; hist.push({ e, from: cur }); cur = other(e, cur);
+  prog.clear(); active = null; trail = [V[cur]];
+  try { navigator.vibrate && navigator.vibrate(12); } catch (x) {}
+  if (drawn.every(Boolean)) { done = true; dragging = false; tEnd = Date.now(); cleared.add(figIdx); }
+}
+function undo() {
+  if (busy || done) return;
+  if (hist.length) { const h = hist.pop(); drawn[h.e] = false; cur = h.from; }
+  else if (cur != null) cur = null;
+  else return;
+  stats.undo++; render();
+}
+function restart() {
+  if (busy) return;
+  drawn = drawn.map(() => false); hist = []; cur = null; done = false; tEnd = null;
+  stats.restart++; render();
+}
+function flashEdge(e, from) {
+  const pl = poly(e, from), pts = ptsAttr(pl.pts);
+  const n = el('polyline', { points: pts, class: 'hint-line', 'stroke-dasharray': pl.len, 'stroke-dashoffset': pl.len }, $('g-fx'));
+  setTimeout(() => n.remove(), 2300);
+}
+function flashStarts() {
+  validStarts().forEach(v => {
+    const n = el('circle', { cx: V[v][0], cy: V[v][1], r: 22, class: 'hint-dot' }, $('g-fx'));
+    setTimeout(() => n.remove(), 2500);
+  });
+}
+function hint() {
+  if (busy || cooling || done) return;
+  stats.hint++;
+  cooling = true; const hb = $('hint-btn'); hb.disabled = true; hb.classList.add('cooling');
+  setTimeout(() => { cooling = false; hb.disabled = false; hb.classList.remove('cooling'); }, 5000);
+  if (cur == null) { render(); flashStarts(); return; }
+  if (solvable(drawn, cur)) { render(); flashEdge(nextEdge(), cur); return; }
+  // already doomed: walk back one line at a time until the drawing can still be finished
+  busy = true; render();
+  const step = () => {
+    if (!hist.length) { cur = null; busy = false; render(); flashStarts(); return; }
+    const h = hist.pop(); drawn[h.e] = false; cur = h.from; render();
+    if (solvable(drawn, cur)) { busy = false; render(); setTimeout(() => flashEdge(nextEdge(), cur), 250); return; }
+    setTimeout(step, 320);
+  };
+  setTimeout(step, 200);
+}
+
+// ---- input
+const pos = ev => { const r = svg.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+svg.addEventListener('pointerdown', ev => {
+  if (busy || done) return;
+  const p = pos(ev);
+  if (cur == null) {
+    let best = null, bd = Infinity;
+    V.forEach((q, v) => { const d = dist(p, q); if (d <= R() && d < bd) { bd = d; best = v; } });
+    if (best == null) return;
+    cur = best; if (!t0) t0 = Date.now();
+  } else if (dist(p, V[cur]) > R()) {
+    const h = $('here'); if (h) { h.classList.remove('nudge'); void h.getBoundingClientRect(); h.classList.add('nudge'); }
+    return;
+  }
+  dragging = true; prog.clear(); active = null; trail = [p]; finger = p;
+  svg.setPointerCapture(ev.pointerId); render();
+});
+svg.addEventListener('pointermove', ev => {
+  if (!dragging || busy || done) return;
+  const p = pos(ev); finger = p;
+  (S.mode === 'trace' ? moveTrace : moveDot)(p);
+  render();
+});
+const endDrag = () => { if (!dragging) return; dragging = false; prog.clear(); active = null; finger = null; render(); };
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+
+// mode A: the finger has to follow the line; the line counts once the finger gets most of the way along it.
+// Drifting off the line pauses it; only lifting the finger clears an unfinished line.
+function moveTrace(p) {
+  active = null; let bestT = 0;
+  for (const e of incident(cur)) {
+    const { t, d } = nearest(poly(e, cur), p);
+    const was = prog.get(e) || 0;
+    if (d > TOL()) continue; // off the line: keep what is drawn so far and wait for the finger to come back
+    if (t <= was + 0.35) prog.set(e, Math.max(was, t));
+    if (prog.get(e) > bestT) { bestT = prog.get(e); active = e; }
+  }
+  if (active != null) {
+    const far = V[other(active, cur)];
+    if (bestT >= 0.9 || (bestT >= 0.5 && dist(p, far) <= R() * 0.8)) commit(active);
+  }
+}
+// mode B: reaching a neighbouring point counts; with several lines to that point, pick the one the finger stayed closest to
+function moveDot(p) {
+  trail.push(p); if (trail.length > 60) trail.shift();
+  let target = null, td = Infinity;
+  for (const e of incident(cur)) {
+    const o = other(e, cur), d = dist(p, V[o]);
+    if (o !== cur && d <= R() && d < td) { td = d; target = o; }
+  }
+  if (target == null) return;
+  const cands = incident(cur).filter(e => other(e, cur) === target);
+  let pick = cands[0], pd = Infinity;
+  if (cands.length > 1) for (const e of cands) {
+    const pl = poly(e, cur), avg = trail.reduce((s, q) => s + nearest(pl, q).d, 0) / trail.length;
+    if (avg < pd) { pd = avg; pick = e; }
+  }
+  commit(pick);
+}
+
+// ---- wiring
+FIGS.forEach((f, i) => {
+  const b = document.createElement('button');
+  b.className = 'fig-btn'; b.textContent = i + 1; b.setAttribute('aria-label', f.name);
+  b.onclick = () => loadFig(i); $('figs').appendChild(b);
+});
+$('undo-btn').onclick = undo;
+$('restart-btn').onclick = restart;
+$('hint-btn').onclick = hint;
+$('next-btn').onclick = () => loadFig((figIdx + 1) % FIGS.length);
+$('gear').onclick = () => { renderStats(); $('panel').hidden = false; };
+$('close-panel').onclick = () => { $('panel').hidden = true; };
+function syncPanel() {
+  $('mode-' + S.mode).checked = true;
+  $({ 22: 'size-s', 34: 'size-m', 48: 'size-l' }[S.size] || 'size-m').checked = true;
+  $('tools-' + S.tools).checked = true;
+  $({ 1: 'tol-1', 1.5: 'tol-15', 2: 'tol-2' }[S.tol] || 'tol-2').checked = true;
+  $('show-touch').checked = S.showTouch;
+  document.body.classList.toggle('tools-top', S.tools === 'top');
+}
+document.querySelectorAll('#panel input').forEach(inp => inp.addEventListener('change', () => {
+  if (inp.name === 'mode') S.mode = inp.value;
+  if (inp.name === 'size') S.size = +inp.value;
+  if (inp.name === 'tol') S.tol = +inp.value;
+  if (inp.name === 'tools') S.tools = inp.value;
+  if (inp.id === 'show-touch') S.showTouch = inp.checked;
+  saveS(); syncPanel(); layout(); render();
+}));
+addEventListener('resize', () => { layout(); render(); });
+syncPanel();
+loadFig(0);
+</script>

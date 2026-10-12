@@ -1,0 +1,75 @@
+<title>形狀關審查</title>
+<style>
+/* Layout: a review sheet — short intro, then one row of five cards per chapter, in level order. */
+:root {
+  --bg: #F3F6F8; --card: #FFFFFF; --fg: #1E2D38; --muted: #5F7180; --line: #2C4A5E; --odd: #E8662F; --warn: #C0392B; --rule: #D6E0E7;
+  --font-body: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141B21; --card: #1D272F; --fg: #E4ECF1; --muted: #9AACB9; --line: #BFD3E0; --odd: #FF8A57; --warn: #FF7A6B; --rule: #2C3943; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #141B21; --card: #1D272F; --fg: #E4ECF1; --muted: #9AACB9; --line: #BFD3E0; --odd: #FF8A57; --warn: #FF7A6B; --rule: #2C3943; color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 28px; }
+h1 { margin: 0; font-size: 26px; }
+h2 { margin: 0; font-size: 19px; }
+.intro { display: grid; gap: 8px; max-width: 72ch; }
+.intro p, .legend { margin: 0; }
+.legend { padding-left: 1.2em; color: var(--muted); }
+section { display: grid; gap: 10px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.card { background: var(--card); border-radius: 12px; padding: 10px 12px 12px; display: grid; gap: 6px; min-width: 0; }
+.card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.card header b { font-size: 17px; }
+.card header span { font-family: var(--font-num); font-size: 13px; color: var(--muted); }
+.card svg { width: 100%; aspect-ratio: 1; display: block; }
+.ln { stroke: var(--line); stroke-width: .02; fill: none; stroke-linecap: round; }
+.pt { fill: var(--card); stroke: var(--line); stroke-width: .012; }
+.pt.odd { fill: var(--odd); stroke: var(--odd); }
+.warn { color: var(--warn); font-size: 13px; margin: 0; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0 10px; font-size: 13px; }
+dt { color: var(--muted); }
+dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+</style>
+<main>
+  <div class="intro">
+    <h1>形狀關審查</h1>
+    <p id="summary"></p>
+    <ul class="legend">
+      <li>橘色的點是單數點，有 2 個時只能從其中一個出發。</li>
+      <li><b>平均畫線數</b>：模擬隨便選線、走不下去就重來的小孩，平均總共畫幾條線才過關。</li>
+      <li><b>難度表的幾倍</b>：跟這一關在難度表上的目標相比。目標是 1.5 倍，不能超過 2.5 倍。</li>
+    </ul>
+  </div>
+  <div id="sections"></div>
+</main>
+<script>
+const DATA = /*DATA*/null;
+function figure(f) {
+  const deg = f.pts.map(() => 0); f.edges.forEach(([a, b]) => { deg[a]++; deg[b]++; });
+  const lines = f.edges.map(([a, b, bulge = 0]) => {
+    const A = f.pts[a], B = f.pts[b];
+    if (!bulge) return `<path class="ln" d="M${A}L${B}"/>`;
+    const dx = B[0] - A[0], dy = B[1] - A[1];
+    return `<path class="ln" d="M${A}Q${[(A[0] + B[0]) / 2 - dy * bulge, (A[1] + B[1]) / 2 + dx * bulge]} ${B}"/>`;
+  }).join('');
+  const dots = f.pts.map((p, v) => `<circle class="pt${deg[v] % 2 ? ' odd' : ''}" cx="${p[0]}" cy="${p[1]}" r=".024"/>`).join('');
+  return `<svg viewBox="0 0 1 1" aria-label="${f.name}">${lines}${dots}</svg>`;
+}
+const total = DATA.reduce((n, ch) => n + ch.shapes.length, 0);
+document.getElementById('summary').textContent = `第 ${DATA[0].chapter} 到第 ${DATA[DATA.length - 1].chapter} 章的形狀關，共 ${total} 張。每章一個主題，章裡的 5 張依平均畫線數從少到多，排在第 10、20、30、40、50 關。`;
+document.getElementById('sections').innerHTML = DATA.map(ch => `<section>
+  <h2>第 ${ch.chapter} 章：${ch.theme}</h2>
+  <div class="grid">${ch.shapes.map(s => `<article class="card">
+    <header><b>${s.name}</b><span>第 ${s.level} 關</span></header>
+    ${figure(s)}
+    ${s.issues.length ? `<p class="warn">${s.issues.join('；')}</p>` : ''}
+    <dl>
+      <dt>線／點／單數點</dt><dd>${s.stats.lines}／${s.stats.points}／${s.stats.odd}</dd>
+      <dt>平均畫線數</dt><dd>${s.stats.avgLines}</dd>
+      <dt>難度表的幾倍</dt><dd>${s.ratio}</dd>
+      <dt>彎線／交叉</dt><dd>${s.stats.curves}／${s.stats.crossings}</dd>
+    </dl>
+  </article>`).join('')}</div>
+</section>`).join('');
+</script>

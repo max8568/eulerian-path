@@ -1,0 +1,118 @@
+<title>一筆畫候選圖</title>
+<style>
+/* Layout: a contact sheet — short intro and a grid/free toggle, then one section per generation method, each a wrap-around grid of numbered cards. */
+:root {
+  --bg: #F3F6F8;
+  --card: #FFFFFF;
+  --fg: #1E2D38;
+  --muted: #5F7180;
+  --line: #2C4A5E;
+  --odd: #E8662F;
+  --rule: #D6E0E7;
+  --font-body: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141B21; --card: #1D272F; --fg: #E4ECF1; --muted: #9AACB9; --line: #BFD3E0; --odd: #FF8A57; --rule: #2C3943; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #141B21; --card: #1D272F; --fg: #E4ECF1; --muted: #9AACB9; --line: #BFD3E0; --odd: #FF8A57; --rule: #2C3943; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 32px; }
+h1 { margin: 0; font-size: 26px; text-wrap: balance; }
+h2 { margin: 0; font-size: 19px; text-wrap: balance; }
+.intro { display: grid; gap: 10px; max-width: 70ch; }
+.intro p { margin: 0; }
+.legend { margin: 0; padding-left: 1.2em; color: var(--muted); }
+.toggle { display: inline-flex; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; width: fit-content; }
+.toggle button { font: inherit; padding: 8px 16px; border: 0; background: var(--card); color: var(--fg); cursor: pointer; }
+.toggle button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.toggle button:focus-visible { outline: 3px solid var(--odd); outline-offset: -3px; }
+section { display: grid; gap: 12px; }
+.sub { margin: 0; color: var(--muted); max-width: 80ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.card { background: var(--card); border-radius: 12px; padding: 10px 12px 12px; display: grid; gap: 6px; min-width: 0; }
+.card header { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--font-num); font-size: 13px; color: var(--muted); }
+.card header b { color: var(--fg); font-size: 15px; }
+.card svg { width: 100%; aspect-ratio: 1; display: block; }
+.card .ln { stroke: var(--line); stroke-width: .02; fill: none; stroke-linecap: round; }
+.card .pt { fill: var(--card); stroke: var(--line); stroke-width: .012; }
+.card .pt.odd { fill: var(--odd); stroke: var(--odd); }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0 10px; font-size: 13px; }
+dt { color: var(--muted); }
+dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+</style>
+
+<main>
+  <div class="intro">
+    <h1>一筆畫候選圖</h1>
+    <p>用三種方法各產生幾百張圖，去掉旋轉或鏡像後跟別張一模一樣的，再依「平均要畫幾條線才過關」從少到多平均挑 20 張。最後一區是手畫的、小朋友認得的形狀，拿來對照。每張圖左上角有編號，討論時可以直接說「B7 太亂」。</p>
+    <ul class="legend">
+      <li>橘色的點是單數點（連著單數條線）。有 2 個時，只能從其中一個出發才畫得完。</li>
+      <li><b>平均畫線數</b>：程式模擬一個隨便選線、走不下去就重來的小孩，平均總共要畫幾條線才過關。研究報告建議拿它來排難度。</li>
+      <li><b>亂挑起點成功</b>：隨便挑一個點出發、隨便選線，一次就畫完的機率。<b>對的起點</b>：只從畫得完的點出發時的機率。</li>
+      <li><b>走錯後還畫</b>：沒畫完的那幾次，從註定畫不完的那一步起，平均又畫了幾條線才發現走不下去。</li>
+      <li><b>交叉</b>：有幾對線交叉在沒有點的地方。<b>重複線</b>：同兩點之間多出來的彎線有幾條。</li>
+    </ul>
+    <div class="toggle" role="group" aria-label="點的位置">
+      <button id="pos-grid" aria-pressed="true">點排在格子上</button>
+      <button id="pos-free" aria-pressed="false">點放在任意位置</button>
+    </div>
+  </div>
+  <div id="sections"></div>
+</main>
+
+<script>
+const DATA = /*DATA*/null;
+let free = false;
+
+function figSvg(f) {
+  const pts = free && f.free ? f.free : f.pts;
+  const deg = pts.map(() => 0); f.edges.forEach(([a, b]) => { deg[a]++; deg[b]++; });
+  const lines = f.edges.map(([a, b, bulge = 0]) => {
+    const A = pts[a], B = pts[b];
+    if (!bulge) return `<path class="ln" d="M${A}L${B}"/>`;
+    const dx = B[0] - A[0], dy = B[1] - A[1], C = [(A[0] + B[0]) / 2 - dy * bulge, (A[1] + B[1]) / 2 + dx * bulge];
+    return `<path class="ln" d="M${A}Q${C} ${B}"/>`;
+  }).join('');
+  const dots = pts.map((p, v) => `<circle class="pt${deg[v] % 2 ? ' odd' : ''}" cx="${p[0]}" cy="${p[1]}" r=".03"/>`).join('');
+  return `<svg viewBox="0 0 1 1" aria-hidden="true">${lines}${dots}</svg>`;
+}
+function card(label, f, name) {
+  const s = f.stats, cross = free && f.free ? s.crossingsFree : s.crossings;
+  return `<article class="card">
+    <header><b>${label}</b><span>${name || ''}</span></header>
+    ${figSvg(f)}
+    <dl>
+      <dt>線／點／單數點</dt><dd>${s.lines}／${s.points}／${s.odd}</dd>
+      <dt>平均畫線數</dt><dd>${s.avgLines}</dd>
+      <dt>亂挑起點成功</dt><dd>${s.pRandom}%（對的起點 ${s.pGoodStart}%）</dd>
+      <dt>走錯後還畫</dt><dd>${s.delay} 條</dd>
+      <dt>交叉／重複線</dt><dd>${cross}／${s.doubles}</dd>
+    </dl>
+  </article>`;
+}
+function render() {
+  const letters = { trail: 'A', cycles: 'B', eulerize: 'C' };
+  const html = DATA.methods.map(m => `<section>
+      <h2>${letters[m.id]}. ${m.name}</h2>
+      <p class="sub">試產生 ${m.made} 次，${m.invalid} 次不能用（畫不完、太小或點壓在別的線上），${m.dupes} 次是旋轉或鏡像後跟前面一模一樣的，留下 ${m.unique} 張不重複的，從中挑 20 張。</p>
+      <div class="grid">${m.figures.map((f, i) => card(letters[m.id] + (i + 1), f)).join('')}</div>
+    </section>`).join('') + `<section>
+      <h2>S. 手畫的、小朋友認得的形狀</h2>
+      <p class="sub">這幾張要一張一張手畫。要做到 1000 關全部是這種圖，得手畫幾百張，或是寫程式把幾個形狀拼起來。切換「任意位置」時這一區不會變。</p>
+      <div class="grid">${DATA.shapes.map((f, i) => card('S' + (i + 1), f, f.name)).join('')}</div>
+    </section>`;
+  document.getElementById('sections').innerHTML = html;
+}
+for (const [id, val] of [['pos-grid', false], ['pos-free', true]]) {
+  document.getElementById(id).addEventListener('click', () => {
+    free = val;
+    document.getElementById('pos-grid').setAttribute('aria-pressed', String(!val));
+    document.getElementById('pos-free').setAttribute('aria-pressed', String(val));
+    render();
+  });
+}
+render();
+</script>

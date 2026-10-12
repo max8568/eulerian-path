@@ -1,0 +1,191 @@
+// Screens and navigation: pick an avatar → chapters → levels → game, plus the parent settings (SPEC.md §3).
+import { gameScreen } from './game.js';
+import * as store from './store.js';
+import { chapterColor, chapterName, chapterEmoji, ANIMALS, LEVELS_PER_CHAPTER, LAST_LEVEL, THEMES } from './theme.js';
+import { ICONS } from './icons.js';
+
+const root = document.getElementById('app');
+let LEVELS = null, cleanup = null;
+
+const nav = {
+  play(level) {
+    if (level < 1 || level > LAST_LEVEL || !store.isUnlocked(level)) return nav.chapters();
+    show(() => gameScreen(root, LEVELS[level - 1], nav));
+  },
+  levels: chapter => show(() => levelsScreen(chapter)),
+  chapters: () => show(chaptersScreen),
+  avatars: () => show(avatarsScreen),
+  // opening the game: straight into the newest level, or the chapters once everything is done
+  start() { const n = store.newestLevel(); n ? nav.play(n) : nav.chapters(); },
+};
+function show(build) {
+  if (cleanup) cleanup();
+  cleanup = null; window.__game = undefined;
+  const c = build();
+  if (typeof c === 'function') cleanup = c;
+  window.scrollTo(0, 0);
+}
+
+const firstLevel = chapter => (chapter - 1) * LEVELS_PER_CHAPTER + 1;
+const starsIn = chapter => store.profile().cleared.filter(l => l >= firstLevel(chapter) && l < firstLevel(chapter) + LEVELS_PER_CHAPTER).length;
+
+// ---- avatars: only shown when there is more than one
+function avatarsScreen() {
+  root.innerHTML = `
+    <div class="screen menu avatars-screen">
+      <div class="avatar-pick">${store.profiles().map(p => `<button class="avatar-big" data-id="${p.id}" aria-label="${p.animal}">${p.animal}</button>`).join('')}</div>
+    </div>`;
+  root.querySelectorAll('.avatar-big').forEach(b => b.onclick = () => { store.setActiveProfile(b.dataset.id); nav.start(); });
+}
+
+// ---- chapters
+function chaptersScreen() {
+  const many = store.profiles().length > 1;
+  root.innerHTML = `
+    <div class="screen menu">
+      <header class="m-top">
+        <button class="round avatar-btn" data-act="avatar" aria-label="換人" ${many ? '' : 'disabled'}>${store.profile().animal}</button>
+        <h1>一筆畫</h1>
+        <button class="round" data-act="parent" aria-label="家長設定">${ICONS.gear}</button>
+      </header>
+      <div class="chapters">${THEMES.map((_, i) => {
+        const ch = i + 1, open = store.isUnlocked(firstLevel(ch));
+        return `<button class="chapter${open ? '' : ' locked'}" data-ch="${ch}" style="--c:${chapterColor(ch)}" ${open ? '' : 'disabled'} aria-label="第 ${ch} 章 ${chapterName(ch)}">
+          <span class="emo">${open ? chapterEmoji(ch) : ICONS.lock}</span>
+          <span class="ch-name">${ch}. ${chapterName(ch)}</span>
+          <span class="ch-stars">★ ${starsIn(ch)}/${LEVELS_PER_CHAPTER}</span>
+        </button>`;
+      }).join('')}</div>
+    </div>`;
+  root.querySelector('[data-act="avatar"]').onclick = () => many && nav.avatars();
+  root.querySelector('[data-act="parent"]').onclick = () => parentPanel(() => nav.chapters());
+  root.querySelectorAll('.chapter:not(.locked)').forEach(b => b.onclick = () => nav.levels(+b.dataset.ch));
+}
+
+// ---- levels of one chapter: 5 columns × 10 rows
+function levelsScreen(chapter) {
+  const first = firstLevel(chapter), newest = store.newestLevel();
+  const cells = Array.from({ length: LEVELS_PER_CHAPTER }, (_, i) => {
+    const l = first + i;
+    const state = store.isCleared(l) ? 'cleared' : store.isSkipped(l) ? 'skipped' : l === newest ? 'newest' : store.isUnlocked(l) ? 'open' : 'locked';
+    const mark = state === 'cleared' ? '★' : state === 'skipped' ? '☆' : state === 'locked' ? ICONS.lock : '';
+    return `<button class="cell ${state}" data-level="${l}" ${state === 'locked' ? 'disabled' : ''} aria-label="第 ${l} 關"><span class="num">${l}</span><span class="mark">${mark}</span></button>`;
+  }).join('');
+  root.innerHTML = `
+    <div class="screen menu" style="--chapter:${chapterColor(chapter)}">
+      <header class="m-top">
+        <button class="round" data-act="back" aria-label="回章節">${ICONS.back}</button>
+        <h1><span class="chip"><span class="emo">${chapterEmoji(chapter)}</span>${chapterName(chapter)}</span></h1>
+        <span class="round-space"></span>
+      </header>
+      <div class="cells">${cells}</div>
+    </div>`;
+  root.querySelector('[data-act="back"]').onclick = () => nav.chapters();
+  root.querySelectorAll('.cell:not(.locked)').forEach(b => b.onclick = () => nav.play(+b.dataset.level));
+  root.querySelector('.cell.newest')?.scrollIntoView({ block: 'center' });
+}
+
+// ---- parent settings
+function parentPanel(onClose) {
+  const panel = document.createElement('div');
+  panel.className = 'panel-back';
+  document.body.appendChild(panel);
+  let picking = null; // profile id whose animal is being changed, or 'new'
+
+  function render() {
+    const ps = store.profiles(), active = store.profile();
+    const recs = active.records.slice(-40).reverse();
+    panel.innerHTML = `
+      <div class="panel" role="dialog" aria-label="家長設定">
+        <h2>家長設定</h2>
+        <section>
+          <h3>頭像（最多 ${store.MAX_PROFILES} 個，各有自己的進度）</h3>
+          <div class="profiles">${ps.map(p => `
+            <div class="profile${p.id === active.id ? ' active' : ''}">
+              <button class="animal" data-pick="${p.id}" aria-label="換動物">${p.animal}</button>
+              <span>${p.cleared.length} 顆星${p.id === active.id ? '・目前' : ''}</span>
+              ${p.id !== active.id ? `<button class="text" data-use="${p.id}">換成這個</button>` : ''}
+              ${ps.length > 1 ? `<button class="text danger" data-remove="${p.id}">刪除</button>` : ''}
+            </div>`).join('')}
+            ${ps.length < store.MAX_PROFILES ? '<button class="text" data-pick="new">＋ 新增頭像</button>' : ''}
+          </div>
+          ${picking ? `<div class="animals">${ANIMALS.map(a => `<button class="animal" data-animal="${a}">${a}</button>`).join('')}</div>` : ''}
+        </section>
+        <section class="row">
+          <h3>聲音</h3>
+          <button class="toggle" data-act="sound" aria-pressed="${store.soundOn()}">${store.soundOn() ? '開' : '關'}</button>
+        </section>
+        <section>
+          <h3>重設 ${active.animal} 的進度</h3>
+          <button class="hold danger" data-act="reset"><span class="fill"></span><span class="label">按住 2 秒</span></button>
+        </section>
+        <section>
+          <h3>試玩紀錄（${active.animal}，最近 ${recs.length} 筆，共 ${active.records.length} 筆）</h3>
+          <button class="text" data-act="copy">複製全部紀錄</button>
+          <span class="copied" hidden>已複製</span>
+          <textarea class="copy-fallback" hidden readonly></textarea>
+          <div class="table-wrap"><table>
+            <thead><tr><th>關卡</th><th>結果</th><th>秒</th><th>退一步</th><th>重來</th><th>提示</th><th>選對起點</th></tr></thead>
+            <tbody>${recs.map(r => `<tr><td>${r.level}</td><td>${{ cleared: '過關', skipped: '跳過', left: '離開' }[r.result]}</td><td>${r.seconds}</td><td>${r.undo}</td><td>${r.restart}</td><td>${r.hint}</td><td>${r.goodStarts}/${r.starts}</td></tr>`).join('') || '<tr><td colspan="7">還沒有紀錄</td></tr>'}</tbody>
+          </table></div>
+        </section>
+        <button class="big" data-act="close">好了</button>
+      </div>`;
+  }
+  render();
+
+  panel.addEventListener('click', ev => {
+    const t = ev.target.closest('button');
+    if (!t) return;
+    if (t.dataset.pick) { picking = picking === t.dataset.pick ? null : t.dataset.pick; render(); return; }
+    if (t.dataset.animal) {
+      if (picking === 'new') store.addProfile(t.dataset.animal); else store.setAnimal(picking, t.dataset.animal);
+      picking = null; render(); return;
+    }
+    if (t.dataset.use) { store.setActiveProfile(t.dataset.use); render(); return; }
+    if (t.dataset.remove) { store.removeProfile(t.dataset.remove); render(); return; }
+    const act = t.dataset.act;
+    if (act === 'sound') { store.setSound(!store.soundOn()); render(); }
+    else if (act === 'copy') copyRecords();
+    else if (act === 'close') { panel.remove(); onClose(); }
+  });
+
+  // reset only after holding the button for 2 seconds
+  let holdTimer = null;
+  panel.addEventListener('pointerdown', ev => {
+    const b = ev.target.closest('[data-act="reset"]');
+    if (!b) return;
+    b.classList.add('holding');
+    holdTimer = setTimeout(() => { store.resetProgress(); render(); }, 2000);
+  });
+  const cancelHold = () => { clearTimeout(holdTimer); panel.querySelector('[data-act="reset"]')?.classList.remove('holding'); };
+  panel.addEventListener('pointerup', cancelHold);
+  panel.addEventListener('pointerleave', cancelHold);
+  panel.addEventListener('pointercancel', cancelHold);
+
+  function copyRecords() {
+    const p = store.profile();
+    const text = JSON.stringify({ animal: p.animal, exportedAt: new Date().toISOString(), records: p.records });
+    const ok = () => { panel.querySelector('.copied').hidden = false; };
+    const fallback = () => { const ta = panel.querySelector('.copy-fallback'); ta.hidden = false; ta.value = text; ta.select(); };
+    try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (e) { fallback(); }
+  }
+}
+
+// ---- boot
+(async () => {
+  root.innerHTML = '<div class="screen loading">一筆畫</div>';
+  try {
+    LEVELS = await (await fetch('levels.json')).json();
+  } catch (e) {
+    root.innerHTML = '<div class="screen loading">關卡載入失敗，請連上網路後重新打開。</div>';
+    return;
+  }
+  window.__app = { nav, store, levels: LEVELS };
+  store.profiles().length > 1 ? nav.avatars() : nav.start();
+})();
+
+// ?nosw skips the offline copy, so a page under development always loads the latest files
+if ('serviceWorker' in navigator && location.protocol !== 'file:' && !location.search.includes('nosw')) {
+  navigator.serviceWorker.register('sw.js').catch(() => { /* still playable online */ });
+}

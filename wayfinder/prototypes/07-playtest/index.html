@@ -1,0 +1,425 @@
+<title>一筆畫試玩</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&display=swap">
+<style>
+/* Layout: one full-height screen — level bar on top, drawing stage, three big buttons below (portrait) or in a right-hand column (landscape). Single deliberate light look, same paper blue as the input prototype. */
+:root {
+  --paper: #EAF3F7;
+  --ink: #1F3442;
+  --todo: #B6C8D3;
+  --draw: #F2542D;
+  --here: #FFC93C;
+  --hint: #1FA463;
+  --panel: #FFFFFF;
+  --soft: #D5E4EC;
+  --font-ui: "Fredoka", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--font-ui);
+  display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: 1fr; overflow: hidden;
+  user-select: none; -webkit-user-select: none; overscroll-behavior: none; -webkit-tap-highlight-color: transparent;
+}
+@media (orientation: landscape) {
+  body { grid-template-rows: auto 1fr; grid-template-columns: 1fr auto; }
+  header { grid-column: 1 / -1; }
+  #tools { flex-direction: column; justify-content: center; padding: 8px 20px 16px 8px; }
+}
+header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; }
+#level-tag { flex: 1; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.round { width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--panel); color: var(--ink); font: 600 22px var(--font-ui); cursor: pointer; display: grid; place-items: center; }
+#skip-btn svg { width: 28px; height: 28px; }
+#skip-btn.armed { background: var(--draw); color: var(--panel); transform: scale(1.25); animation: blink .5s ease-in-out infinite alternate; }
+@keyframes blink { to { opacity: .55; } }
+#gear { background: transparent; }
+#stage { position: relative; min-height: 0; min-width: 0; }
+#svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+#tools { display: flex; justify-content: center; gap: 22px; padding: 12px 16px 18px; }
+.tool { position: relative; overflow: hidden; width: 76px; height: 76px; border-radius: 24px; border: 0; cursor: pointer; background: var(--panel); color: var(--ink); box-shadow: 0 4px 0 var(--soft); display: grid; place-items: center; }
+.tool:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--soft); }
+.tool:focus-visible, .round:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.tool svg { width: 40px; height: 40px; }
+#hint-btn { color: var(--hint); }
+#hint-btn:disabled { opacity: .45; cursor: default; }
+#hint-btn .cool { position: absolute; left: 0; bottom: 0; height: 6px; width: 0; background: var(--hint); }
+#hint-btn.cooling .cool { animation: fill 5s linear forwards; }
+@keyframes fill { to { width: 100%; } }
+#hint-btn.bounce { animation: bounce 1s ease-in-out infinite; }
+@keyframes bounce { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-14px); } 55% { transform: translateY(0); } 70% { transform: translateY(-6px); } }
+
+.e-todo { stroke: var(--todo); stroke-width: 10; fill: none; stroke-linecap: round; }
+.e-done { stroke: var(--draw); stroke-width: 12; fill: none; stroke-linecap: round; }
+.e-part { stroke: var(--draw); stroke-width: 12; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: .75; }
+.v { fill: var(--panel); stroke: var(--ink); stroke-width: 4; }
+.v-here { fill: var(--here); stroke: var(--ink); stroke-width: 4; }
+.ring { fill: none; stroke: var(--here); stroke-width: 5; transform-box: fill-box; transform-origin: center; animation: ring 1.4s ease-out infinite; }
+@keyframes ring { from { transform: scale(1); opacity: .9; } to { transform: scale(2.1); opacity: 0; } }
+.nudge { animation: nudge .5s ease-in-out 2; transform-box: fill-box; transform-origin: center; }
+@keyframes nudge { 50% { transform: scale(1.5); } }
+.hint-line { stroke: var(--hint); stroke-width: 14; fill: none; stroke-linecap: round; animation: trace 1s ease-in-out 2 forwards; }
+@keyframes trace { to { stroke-dashoffset: 0; } }
+.hint-dot { fill: none; stroke: var(--hint); stroke-width: 6; transform-box: fill-box; transform-origin: center; animation: hdot .8s ease-in-out 3; }
+@keyframes hdot { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.6); opacity: .35; } }
+
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(234,243,247,.85); }
+.overlay .box { display: grid; justify-items: center; gap: 18px; text-align: center; font-size: 22px; }
+.star { width: 140px; height: 140px; animation: pop .5s cubic-bezier(.3,1.6,.5,1); }
+@keyframes pop { from { transform: scale(.2); } to { transform: scale(1); } }
+.big-btn { font: 600 22px var(--font-ui); padding: 14px 32px; border-radius: 22px; border: 0; background: var(--ink); color: var(--panel); cursor: pointer; }
+
+#panel { position: fixed; inset: 0; background: rgba(31,52,66,.35); display: grid; place-items: center; padding: 16px; z-index: 5; }
+#panel .sheet { background: var(--panel); border-radius: 18px; padding: 18px 20px; width: min(560px, 100%); max-height: 100%; overflow: auto; display: grid; gap: 14px; font-size: 15px; user-select: text; -webkit-user-select: text; }
+#panel h2 { margin: 0; font-size: 18px; }
+#panel .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+#panel input { font: inherit; padding: 6px 10px; border: 2px solid var(--soft); border-radius: 10px; width: 9em; }
+#panel .note { margin: 0; color: #5B6E7B; font-size: 13px; }
+#jump { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+#jump button { font: 600 15px var(--font-ui); height: 40px; border-radius: 10px; border: 2px solid var(--soft); background: var(--panel); color: var(--ink); cursor: pointer; }
+#jump button.cleared { background: var(--here); border-color: var(--here); }
+#jump button.skipped { border-style: dashed; border-color: var(--ink); }
+#jump button.now { border-color: var(--ink); }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; width: 100%; }
+th, td { padding: 4px 6px; border-bottom: 1px solid var(--soft); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+#close-panel { justify-self: end; font: 600 16px var(--font-ui); padding: 8px 20px; border-radius: 12px; border: 0; background: var(--ink); color: var(--panel); cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .ring, #hint-btn.bounce, .star, #skip-btn.armed { animation: none; } }
+</style>
+
+<header>
+  <button class="round" id="gear" aria-label="家長設定">⚙</button>
+  <div id="level-tag">第 1 關</div>
+  <button class="round" id="skip-btn" aria-label="跳過（按兩下）">
+    <svg viewBox="0 0 28 28" fill="currentColor"><path d="M4 5l10 9-10 9zM14 5l10 9-10 9z"/></svg>
+  </button>
+</header>
+
+<div id="stage">
+  <svg id="svg" aria-label="畫圖區"><g id="g-edges"></g><g id="g-part"></g><g id="g-fx"></g><g id="g-verts"></g></svg>
+  <div class="overlay" id="win" hidden>
+    <div class="box">
+      <svg class="star" viewBox="0 0 100 100" aria-label="過關"><path d="M50 6l13 28 30 3-23 20 7 30-27-16-27 16 7-30L7 37l30-3z" fill="#FFC93C" stroke="#1F3442" stroke-width="4" stroke-linejoin="round"/></svg>
+      <button class="big-btn" id="next-btn">下一關 ▶</button>
+    </div>
+  </div>
+  <div class="overlay" id="finished" hidden>
+    <div class="box">
+      <svg class="star" viewBox="0 0 100 100" aria-label="全部玩完"><path d="M50 6l13 28 30 3-23 20 7 30-27-16-27 16 7-30L7 37l30-3z" fill="#FFC93C" stroke="#1F3442" stroke-width="4" stroke-linejoin="round"/></svg>
+      <div>全部玩完了！</div>
+    </div>
+  </div>
+</div>
+
+<div id="tools">
+  <button class="tool" id="undo-btn" aria-label="退一步"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 10 6 18l8 8"/><path d="M6 18h18a10 10 0 0 1 0 20h-6"/></svg></button>
+  <button class="tool" id="restart-btn" aria-label="重來"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 20a12 12 0 1 1-4-9"/><path d="M30 4v8h-8"/></svg></button>
+  <button class="tool" id="hint-btn" aria-label="提示"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 27c0-4-5-6-5-13a11 11 0 0 1 22 0c0 7-5 9-5 13z"/><path d="M15 33h10M17 38h6"/></svg><span class="cool"></span></button>
+</div>
+
+<div id="panel" hidden>
+  <div class="sheet">
+    <h2>家長設定</h2>
+    <div class="row">
+      <label for="kid-name">誰在玩</label><input id="kid-name" placeholder="名字或代號">
+      <label for="kid-age">幾歲</label><input id="kid-age" inputmode="numeric" placeholder="例如 7">
+    </div>
+    <p class="note" id="db-status">紀錄存放：連線中…</p>
+    <div>
+      <p class="note">跳到某一關（黃色是過關，虛線是跳過）：</p>
+      <div id="jump"></div>
+    </div>
+    <div class="table-wrap"><table id="results"></table></div>
+    <button id="close-panel">好了</button>
+  </div>
+</div>
+
+<script>
+const LEVELS = [{"id":"A1","name":null,"pts":[[0.1,0.9],[0.3666666666666667,0.9],[0.1,0.6333333333333333]],"edges":[[0,1],[2,0],[2,1]],"stats":{"lines":3,"points":3,"odd":0,"avgLines":3,"pRandom":100,"pGoodStart":100,"delay":0,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"S3","name":"蝴蝶結","pts":[[0.5,0.5],[0.1,0.15],[0.1,0.85],[0.9,0.15],[0.9,0.85]],"edges":[[0,1],[1,2],[2,0],[0,3],[3,4],[4,0]],"stats":{"lines":6,"points":5,"odd":0,"avgLines":7.1,"pRandom":74,"pGoodStart":74,"delay":0.5,"crossings":0,"doubles":0}},{"id":"B2","name":null,"pts":[[0.3666666666666667,0.3666666666666667],[0.6333333333333333,0.3666666666666667],[0.3666666666666667,0.1],[0.1,0.1],[0.6333333333333333,0.6333333333333333]],"edges":[[0,1],[2,0],[3,2],[1,4],[0,4],[3,0]],"stats":{"lines":6,"points":5,"odd":0,"avgLines":7.2,"pRandom":72,"pGoodStart":72,"delay":0.5,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"S1","name":"鑽石","pts":[[0.5,0.1],[0.12,0.5],[0.88,0.5],[0.5,0.9]],"edges":[[0,1],[0,2],[1,3],[2,3],[1,2]],"stats":{"lines":5,"points":4,"odd":2,"avgLines":8.9,"pRandom":49,"pGoodStart":100,"delay":3.7,"crossings":0,"doubles":0}},{"id":"B3","name":null,"pts":[[0.3666666666666667,0.1],[0.6333333333333333,0.1],[0.9,0.1],[0.9,0.3666666666666667],[0.6333333333333333,0.3666666666666667],[0.9,0.6333333333333333]],"edges":[[0,1],[1,2],[2,3],[4,5],[0,4]],"stats":{"lines":5,"points":6,"odd":2,"avgLines":9.9,"pRandom":34,"pGoodStart":100,"delay":2.5,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"B4","name":null,"pts":[[0.6333333333333333,0.6333333333333333],[0.9,0.9],[0.6333333333333333,0.9],[0.6333333333333333,0.1],[0.9,0.3666666666666667],[0.3666666666666667,0.3666666666666667],[0.3666666666666667,0.9],[0.1,0.6333333333333333]],"edges":[[0,1],[2,1],[0,2],[3,4],[0,4],[5,3],[6,0],[7,6],[7,5]],"stats":{"lines":9,"points":8,"odd":0,"avgLines":11.1,"pRandom":71,"pGoodStart":71,"delay":1.6,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"S7","name":"星星","pts":[[0.5,0.12000000000000005],[0.8994437368439645,0.41021286236252213],[0.7468698059628387,0.879787137637478],[0.2531301940371613,0.879787137637478],[0.10055626315603555,0.41021286236252197]],"edges":[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3],[3,0]],"stats":{"lines":10,"points":5,"odd":0,"avgLines":11.5,"pRandom":82,"pGoodStart":82,"delay":0.2,"crossings":5,"doubles":0}},{"id":"S2","name":"信封","pts":[[0.1,0.25],[0.9,0.25],[0.9,0.8],[0.1,0.8],[0.5,0.55]],"edges":[[0,1],[1,2],[2,3],[3,0],[0,4],[4,1]],"stats":{"lines":6,"points":5,"odd":2,"avgLines":12.8,"pRandom":40,"pGoodStart":100,"delay":4.5,"crossings":0,"doubles":0}},{"id":"A5","name":null,"pts":[[0.1,0.6333333333333333],[0.1,0.9],[0.3666666666666667,0.9],[0.6333333333333333,0.6333333333333333],[0.9,0.6333333333333333],[0.9,0.9]],"edges":[[0,1],[0,2],[2,3],[3,4],[4,5],[3,5]],"stats":{"lines":6,"points":6,"odd":2,"avgLines":14.4,"pRandom":29,"pGoodStart":84,"delay":3.3,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"B7","name":null,"pts":[[0.3666666666666667,0.1],[0.6333333333333333,0.3666666666666667],[0.9,0.6333333333333333],[0.6333333333333333,0.6333333333333333],[0.3666666666666667,0.6333333333333333],[0.3666666666666667,0.3666666666666667],[0.1,0.3666666666666667],[0.1,0.9],[0.1,0.6333333333333333]],"edges":[[0,1],[1,2],[3,2],[4,3],[5,4],[0,5],[6,5],[5,1],[4,1],[7,4],[8,7],[6,8]],"stats":{"lines":12,"points":9,"odd":0,"avgLines":15.3,"pRandom":68,"pGoodStart":68,"delay":1,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"B9","name":null,"pts":[[0.3666666666666667,0.3666666666666667],[0.6333333333333333,0.6333333333333333],[0.3666666666666667,0.9],[0.1,0.6333333333333333],[0.6333333333333333,0.3666666666666667],[0.9,0.6333333333333333],[0.6333333333333333,0.9],[0.3666666666666667,0.6333333333333333],[0.1,0.3666666666666667]],"edges":[[0,1],[2,1],[3,2],[3,0],[4,5],[6,5],[7,6],[7,4],[3,7],[8,0],[0,7],[8,3]],"stats":{"lines":12,"points":9,"odd":0,"avgLines":17.9,"pRandom":53,"pGoodStart":53,"delay":1.8,"crossings":2,"doubles":0,"crossingsFree":2}},{"id":"B10","name":null,"pts":[[0.1,0.3666666666666667],[0.3666666666666667,0.3666666666666667],[0.6333333333333333,0.3666666666666667],[0.6333333333333333,0.6333333333333333],[0.3666666666666667,0.6333333333333333],[0.1,0.6333333333333333],[0.3666666666666667,0.1],[0.6333333333333333,0.1],[0.9,0.1],[0.9,0.3666666666666667]],"edges":[[0,1],[2,3],[4,3],[5,4],[0,5],[6,2],[4,2],[0,4],[0,6],[6,7],[7,8],[8,9],[2,9],[6,1]],"stats":{"lines":14,"points":10,"odd":0,"avgLines":19.6,"pRandom":59,"pGoodStart":59,"delay":1.3,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"B11","name":null,"pts":[[0.3666666666666667,0.3666666666666667],[0.6333333333333333,0.6333333333333333],[0.9,0.9],[0.3666666666666667,0.6333333333333333],[0.3666666666666667,0.9],[0.6333333333333333,0.3666666666666667],[0.9,0.3666666666666667],[0.9,0.6333333333333333],[0.6333333333333333,0.9],[0.1,0.3666666666666667],[0.1,0.9],[0.1,0.6333333333333333]],"edges":[[0,1],[1,2],[3,4],[0,3],[5,6],[6,7],[7,2],[1,8],[5,1],[9,3],[3,8],[10,4],[11,10],[9,11]],"stats":{"lines":14,"points":12,"odd":0,"avgLines":21.9,"pRandom":47,"pGoodStart":47,"delay":2.6,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"A7","name":null,"pts":[[0.1,0.1],[0.1,0.3666666666666667],[0.3666666666666667,0.3666666666666667],[0.6333333333333333,0.3666666666666667],[0.9,0.6333333333333333],[0.9,0.3666666666666667],[0.6333333333333333,0.1],[0.3666666666666667,0.1]],"edges":[[0,1],[1,2],[2,3],[3,4],[5,4],[6,5],[7,6],[7,3]],"stats":{"lines":8,"points":8,"odd":2,"avgLines":27.7,"pRandom":19,"pGoodStart":81,"delay":4.7,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"A8","name":null,"pts":[[0.1,0.3666666666666667],[0.3666666666666667,0.3666666666666667],[0.1,0.6333333333333333],[0.3666666666666667,0.9],[0.1,0.9],[0.3666666666666667,0.6333333333333333],[0.1,0.1]],"edges":[[0,1],[2,1],[2,3],[4,3],[2,4],[2,5],[0,5],[6,0]],"stats":{"lines":8,"points":7,"odd":2,"avgLines":34.2,"pRandom":16,"pGoodStart":54,"delay":4.4,"crossings":1,"doubles":0,"crossingsFree":1}},{"id":"A9","name":null,"pts":[[0.3666666666666667,0.3666666666666667],[0.6333333333333333,0.1],[0.6333333333333333,0.3666666666666667],[0.9,0.3666666666666667],[0.9,0.1],[0.6333333333333333,0.6333333333333333],[0.3666666666666667,0.6333333333333333],[0.3666666666666667,0.9],[0.6333333333333333,0.9],[0.9,0.6333333333333333]],"edges":[[0,1],[0,2],[1,2],[1,3],[4,3],[2,4],[2,5],[6,5],[6,7],[7,8],[8,9]],"stats":{"lines":11,"points":10,"odd":2,"avgLines":42.8,"pRandom":16,"pGoodStart":83,"delay":5.9,"crossings":1,"doubles":0,"crossingsFree":1}},{"id":"B16","name":null,"pts":[[0.1,0.3666666666666667],[0.3666666666666667,0.3666666666666667],[0.6333333333333333,0.3666666666666667],[0.6333333333333333,0.6333333333333333],[0.6333333333333333,0.9],[0.3666666666666667,0.9],[0.1,0.9],[0.1,0.6333333333333333],[0.6333333333333333,0.1],[0.9,0.1],[0.9,0.3666666666666667]],"edges":[[0,1],[1,2],[2,3],[3,4],[5,4],[6,5],[7,6],[0,7],[8,9],[2,10],[8,2]],"stats":{"lines":11,"points":11,"odd":2,"avgLines":51,"pRandom":13,"pGoodStart":69,"delay":5.6,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"B17","name":null,"pts":[[0.6333333333333333,0.1],[0.9,0.3666666666666667],[0.6333333333333333,0.6333333333333333],[0.3666666666666667,0.3666666666666667],[0.1,0.3666666666666667],[0.6333333333333333,0.3666666666666667],[0.6333333333333333,0.9],[0.3666666666666667,0.9],[0.1,0.9],[0.1,0.6333333333333333],[0.3666666666666667,0.6333333333333333]],"edges":[[0,1],[2,1],[3,2],[4,3],[3,5],[2,6],[7,6],[8,7],[9,8],[9,3],[0,5],[9,10],[4,9]],"stats":{"lines":13,"points":11,"odd":2,"avgLines":59.9,"pRandom":14,"pGoodStart":74,"delay":7.1,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"A11","name":null,"pts":[[0.6333333333333333,0.6333333333333333],[0.9,0.6333333333333333],[0.6333333333333333,0.9],[0.3666666666666667,0.6333333333333333],[0.6333333333333333,0.3666666666666667],[0.9,0.3666666666666667],[0.9,0.1],[0.6333333333333333,0.1],[0.3666666666666667,0.9]],"edges":[[0,1],[2,1],[3,2],[3,4],[4,1],[5,1],[6,5],[7,6],[7,5],[0,5],[0,2],[8,2],[8,0],[4,0],[4,6]],"stats":{"lines":15,"points":9,"odd":2,"avgLines":69.3,"pRandom":16,"pGoodStart":74,"delay":9.8,"crossings":3,"doubles":0,"crossingsFree":3}},{"id":"A13","name":null,"pts":[[0.9,0.1],[0.9,0.3666666666666667],[0.9,0.6333333333333333],[0.6333333333333333,0.9],[0.3666666666666667,0.9],[0.3666666666666667,0.6333333333333333],[0.1,0.3666666666666667],[0.1,0.6333333333333333],[0.6333333333333333,0.6333333333333333],[0.3666666666666667,0.3666666666666667],[0.3666666666666667,0.1],[0.1,0.1]],"edges":[[0,1],[1,2],[3,2],[4,3],[5,4],[6,5],[6,7],[7,5],[5,8],[9,8],[10,9],[11,10],[11,6],[6,9],[11,9]],"stats":{"lines":15,"points":12,"odd":2,"avgLines":77.8,"pRandom":11,"pGoodStart":66,"delay":7.5,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"A15","name":null,"pts":[[0.6333333333333333,0.9],[0.9,0.6333333333333333],[0.9,0.9],[0.6333333333333333,0.6333333333333333],[0.3666666666666667,0.9],[0.1,0.9],[0.1,0.6333333333333333],[0.1,0.3666666666666667],[0.3666666666666667,0.3666666666666667],[0.6333333333333333,0.3666666666666667],[0.3666666666666667,0.1],[0.1,0.1],[0.6333333333333333,0.1]],"edges":[[0,1],[0,2],[3,2],[4,3],[5,4],[6,5],[7,6],[7,8],[8,9],[9,3],[8,3],[10,8],[7,10],[11,7],[11,10],[10,12]],"stats":{"lines":16,"points":13,"odd":2,"avgLines":101,"pRandom":8,"pGoodStart":54,"delay":6.8,"crossings":1,"doubles":0,"crossingsFree":1}},{"id":"B19","name":null,"pts":[[0.6333333333333333,0.1],[0.9,0.3666666666666667],[0.6333333333333333,0.6333333333333333],[0.3666666666666667,0.3666666666666667],[0.3666666666666667,0.6333333333333333],[0.9,0.6333333333333333],[0.9,0.9],[0.6333333333333333,0.9],[0.3666666666666667,0.9],[0.1,0.1],[0.3666666666666667,0.1],[0.6333333333333333,0.3666666666666667],[0.1,0.3666666666666667]],"edges":[[0,1],[2,1],[3,2],[3,0],[4,2],[2,5],[5,6],[7,6],[4,8],[9,10],[10,0],[0,11],[3,11],[12,3],[9,12]],"stats":{"lines":15,"points":13,"odd":2,"avgLines":111.6,"pRandom":7,"pGoodStart":43,"delay":6.5,"crossings":0,"doubles":0,"crossingsFree":0}},{"id":"A17","name":null,"pts":[[0.6333333333333333,0.1],[0.9,0.3666666666666667],[0.6333333333333333,0.3666666666666667],[0.3666666666666667,0.1],[0.3666666666666667,0.3666666666666667],[0.1,0.1],[0.1,0.3666666666666667],[0.3666666666666667,0.6333333333333333],[0.6333333333333333,0.6333333333333333],[0.9,0.6333333333333333],[0.9,0.1],[0.1,0.6333333333333333],[0.1,0.9],[0.3666666666666667,0.9]],"edges":[[0,1],[0,2],[3,2],[3,4],[5,4],[5,6],[6,7],[7,8],[8,9],[1,9],[8,1],[2,8],[2,1],[10,1],[0,10],[4,0],[11,4],[11,7],[12,7],[11,12],[11,13]],"stats":{"lines":21,"points":14,"odd":2,"avgLines":148.4,"pRandom":8,"pGoodStart":58,"delay":10.8,"crossings":3,"doubles":0,"crossingsFree":3}},{"id":"A18","name":null,"pts":[[0.3666666666666667,0.1],[0.3666666666666667,0.3666666666666667],[0.1,0.3666666666666667],[0.1,0.1],[0.3666666666666667,0.6333333333333333],[0.1,0.9],[0.1,0.6333333333333333],[0.6333333333333333,0.1],[0.9,0.1],[0.9,0.3666666666666667],[0.6333333333333333,0.6333333333333333],[0.6333333333333333,0.9],[0.9,0.6333333333333333],[0.6333333333333333,0.3666666666666667]],"edges":[[0,1],[2,1],[3,2],[3,1],[1,4],[5,4],[6,5],[6,1],[1,7],[7,8],[8,9],[10,9],[10,11],[11,12],[10,12],[4,10],[2,4],[2,0],[0,7],[7,13],[13,12]],"stats":{"lines":21,"points":14,"odd":2,"avgLines":165.9,"pRandom":8,"pGoodStart":56,"delay":12.2,"crossings":3,"doubles":0,"crossingsFree":3}}];
+const R = 34, TOL = 68;
+const $ = id => document.getElementById(id);
+const svg = $('svg'), NS = 'http://www.w3.org/2000/svg';
+
+// ---- per-device memory: where the child is, who is playing, and a local copy of every record
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('euler-playtest-' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('euler-playtest-' + k, JSON.stringify(v)); } catch (e) {} },
+};
+const session = store.get('session', null) || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+store.set('session', session);
+let records = store.get('records', []);
+let db = null;
+
+// ---- state
+let li = Math.min(store.get('level', 0), LEVELS.length - 1);
+let V = [], E = [], drawn = [], hist = [], cur = null;
+let dragging = false, prog = new Map(), active = null;
+let busy = false, cooling = false, done = false, finished = false, armedSkip = null;
+let log;
+
+const dist = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]);
+const other = (e, v) => (E[e].a === v ? E[e].b : E[e].a);
+const incident = v => E.map((_, i) => i).filter(i => !drawn[i] && (E[i].a === v || E[i].b === v));
+
+// ---- geometry
+function layout() {
+  const w = svg.clientWidth, h = svg.clientHeight;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const f = LEVELS[li], box = unitBox(f);
+  // keep the grid spacing, but centre the figure's own extent (most figures use only part of the grid)
+  const pad = 40, size = Math.min(w, h) - 2 * pad;
+  const ox = w / 2 - ((box[0] + box[2]) / 2) * size, oy = h / 2 - ((box[1] + box[3]) / 2) * size;
+  V = f.pts.map(([x, y]) => [ox + x * size, oy + y * size]);
+  E = f.edges.map(([a, b, bulge = 0]) => {
+    const A = V[a], B = V[b], dx = B[0] - A[0], dy = B[1] - A[1];
+    let pts, d;
+    if (!bulge) { pts = [A, B]; d = `M${A}L${B}`; }
+    else {
+      const C = [(A[0] + B[0]) / 2 - dy * bulge, (A[1] + B[1]) / 2 + dx * bulge];
+      pts = [];
+      for (let i = 0; i <= 32; i++) { const t = i / 32, u = 1 - t; pts.push([u*u*A[0] + 2*u*t*C[0] + t*t*B[0], u*u*A[1] + 2*u*t*C[1] + t*t*B[1]]); }
+      d = `M${A}Q${C} ${B}`;
+    }
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + dist(pts[i - 1], pts[i]));
+    return { a, b, pts, cum, len: cum[cum.length - 1], d };
+  });
+}
+// extent of a figure in its unit square: [minX, minY, maxX, maxY], curves included
+function unitBox(f) {
+  const xs = [], ys = [];
+  const add = ([x, y]) => { xs.push(x); ys.push(y); };
+  f.pts.forEach(add);
+  f.edges.forEach(([a, b, bulge = 0]) => {
+    if (!bulge) return;
+    const A = f.pts[a], B = f.pts[b], dx = B[0] - A[0], dy = B[1] - A[1];
+    const C = [(A[0] + B[0]) / 2 - dy * bulge, (A[1] + B[1]) / 2 + dx * bulge];
+    for (let i = 1; i < 16; i++) { const t = i / 16, u = 1 - t; add([u*u*A[0] + 2*u*t*C[0] + t*t*B[0], u*u*A[1] + 2*u*t*C[1] + t*t*B[1]]); }
+  });
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+function poly(e, v) {
+  const ed = E[e];
+  if (ed.a === v) return ed;
+  const pts = ed.pts.slice().reverse(), cum = pts.map((_, i) => ed.len - ed.cum[ed.pts.length - 1 - i]);
+  return { pts, cum, len: ed.len };
+}
+function nearest(pl, p) {
+  let best = { d: Infinity, t: 0 };
+  for (let i = 0; i < pl.pts.length - 1; i++) {
+    const a = pl.pts[i], b = pl.pts[i + 1], vx = b[0] - a[0], vy = b[1] - a[1], l2 = vx * vx + vy * vy || 1;
+    const u = Math.max(0, Math.min(1, ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / l2));
+    const d = Math.hypot(p[0] - a[0] - u * vx, p[1] - a[1] - u * vy);
+    if (d < best.d) best = { d, t: (pl.cum[i] + u * Math.sqrt(l2)) / pl.len };
+  }
+  return best;
+}
+function partial(pl, t) {
+  const target = t * pl.len, out = [pl.pts[0]];
+  for (let i = 1; i < pl.pts.length; i++) {
+    if (pl.cum[i] <= target) { out.push(pl.pts[i]); continue; }
+    const u = (target - pl.cum[i - 1]) / (pl.cum[i] - pl.cum[i - 1]), a = pl.pts[i - 1], b = pl.pts[i];
+    out.push([a[0] + u * (b[0] - a[0]), a[1] + u * (b[1] - a[1])]);
+    break;
+  }
+  return out;
+}
+
+// ---- one-stroke logic
+function solvable(dr, c) {
+  const deg = V.map(() => 0); let m = 0;
+  E.forEach((e, i) => { if (!dr[i]) { deg[e.a]++; deg[e.b]++; m++; } });
+  if (m === 0 || c == null) return true;
+  if (deg[c] === 0) return false;
+  const seen = new Set([c]), stack = [c];
+  while (stack.length) {
+    const x = stack.pop();
+    E.forEach((e, i) => { if (dr[i]) return; const y = e.a === x ? e.b : e.b === x ? e.a : -1; if (y >= 0 && !seen.has(y)) { seen.add(y); stack.push(y); } });
+  }
+  if (deg.some((d, v) => d > 0 && !seen.has(v))) return false;
+  const odd = deg.map((d, v) => (d % 2 ? v : -1)).filter(v => v >= 0);
+  return odd.length === 0 || (odd.length === 2 && odd.includes(c));
+}
+function validStarts() {
+  const deg = V.map(() => 0); E.forEach(e => { deg[e.a]++; deg[e.b]++; });
+  const odd = deg.map((d, v) => (d % 2 ? v : -1)).filter(v => v >= 0);
+  return odd.length === 2 ? odd : V.map((_, v) => v);
+}
+const nextEdge = () => incident(cur).find(e => { const d2 = drawn.slice(); d2[e] = true; return solvable(d2, other(e, cur)); });
+
+// ---- rendering
+function el(tag, attrs, parent) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent.appendChild(n); return n; }
+const ptsAttr = pts => pts.map(p => p.join(',')).join(' ');
+function render() {
+  const gE = $('g-edges'), gP = $('g-part'), gV = $('g-verts');
+  gE.innerHTML = gP.innerHTML = gV.innerHTML = '';
+  E.forEach((e, i) => el('path', { d: e.d, class: drawn[i] ? 'e-done' : 'e-todo' }, gE));
+  if (dragging && cur != null && active != null) el('polyline', { points: ptsAttr(partial(poly(active, cur), prog.get(active))), class: 'e-part' }, gP);
+  V.forEach((p, v) => {
+    if (v === cur) {
+      if (!done) el('circle', { cx: p[0], cy: p[1], r: 16, class: 'ring' }, gV);
+      el('circle', { cx: p[0], cy: p[1], r: 16, class: 'v-here', id: 'here' }, gV);
+    } else el('circle', { cx: p[0], cy: p[1], r: 13, class: 'v' }, gV);
+  });
+  $('level-tag').textContent = `第 ${li + 1} / ${LEVELS.length} 關`;
+  $('hint-btn').classList.toggle('bounce', !done && !busy && cur != null && incident(cur).length === 0);
+  $('win').hidden = !done || finished;
+  $('finished').hidden = !finished;
+}
+
+// ---- records
+function newLog() { return { t0: null, undo: 0, restart: 0, hint: 0, starts: [] }; }
+async function saveRecord(result) {
+  if (!log.t0 && result !== 'skipped') return; // never touched the level and left it: nothing to record
+  const lv = LEVELS[li];
+  const rec = {
+    session, kid: $('kid-name').value.trim(), age: $('kid-age').value.trim(),
+    level: li + 1, figure: lv.id, shape: lv.name, result,
+    seconds: log.t0 ? Math.round((Date.now() - log.t0) / 1000) : 0,
+    undo: log.undo, restart: log.restart, hint: log.hint,
+    starts: log.starts.length, goodStarts: log.starts.filter(Boolean).length, firstStartGood: log.starts.length ? log.starts[0] : null,
+    lines: lv.stats.lines, odd: lv.stats.odd, avgLines: lv.stats.avgLines, crossings: lv.stats.crossings,
+    at: new Date().toISOString(),
+  };
+  records.push(rec); store.set('records', records);
+  log = newLog();
+  if (db) {
+    try { await db.collection('playtest').doc(`${session}-${String(li + 1).padStart(2, '0')}-${Date.now()}`).set(rec); }
+    catch (e) { $('db-status').textContent = '紀錄存放：上傳失敗，紀錄還留在這台 iPad 上（' + (e && e.code || '未知原因') + '）'; }
+  }
+}
+
+// ---- actions
+function loadLevel(i) {
+  li = i; store.set('level', li);
+  drawn = LEVELS[i].edges.map(() => false); hist = []; cur = null; done = false; finished = false;
+  log = newLog(); disarmSkip();
+  $('g-fx').innerHTML = '';
+  layout(); render();
+}
+function chooseStart(v) {
+  cur = v; if (!log.t0) log.t0 = Date.now();
+  log.starts.push(validStarts().includes(v));
+}
+function commit(e) {
+  drawn[e] = true; hist.push({ e, from: cur }); cur = other(e, cur);
+  prog.clear(); active = null;
+  if (drawn.every(Boolean)) {
+    done = true; dragging = false;
+    const cleared = store.get('cleared', []); if (!cleared.includes(li)) { cleared.push(li); store.set('cleared', cleared); }
+    saveRecord('cleared');
+    if (li === LEVELS.length - 1) finished = true;
+  }
+}
+function undo() {
+  if (busy || done) return;
+  if (hist.length) { const h = hist.pop(); drawn[h.e] = false; cur = h.from; }
+  else if (cur != null) cur = null;
+  else return;
+  log.undo++; render();
+}
+function restart() {
+  if (busy || done) return;
+  drawn = drawn.map(() => false); hist = []; cur = null; log.restart++; render();
+}
+function flashEdge(e, from) {
+  const pl = poly(e, from);
+  const n = el('polyline', { points: ptsAttr(pl.pts), class: 'hint-line', 'stroke-dasharray': pl.len, 'stroke-dashoffset': pl.len }, $('g-fx'));
+  setTimeout(() => n.remove(), 2300);
+}
+function flashStarts() {
+  validStarts().forEach(v => { const n = el('circle', { cx: V[v][0], cy: V[v][1], r: 22, class: 'hint-dot' }, $('g-fx')); setTimeout(() => n.remove(), 2500); });
+}
+function hint() {
+  if (busy || cooling || done) return;
+  log.hint++; if (!log.t0) log.t0 = Date.now();
+  cooling = true; const hb = $('hint-btn'); hb.disabled = true; hb.classList.add('cooling');
+  setTimeout(() => { cooling = false; hb.disabled = false; hb.classList.remove('cooling'); }, 5000);
+  if (cur == null) { render(); flashStarts(); return; }
+  if (solvable(drawn, cur)) { render(); flashEdge(nextEdge(), cur); return; }
+  busy = true; render();
+  const step = () => {
+    if (!hist.length) { cur = null; busy = false; render(); flashStarts(); return; }
+    const h = hist.pop(); drawn[h.e] = false; cur = h.from; render();
+    if (solvable(drawn, cur)) { busy = false; render(); setTimeout(() => flashEdge(nextEdge(), cur), 250); return; }
+    setTimeout(step, 320);
+  };
+  setTimeout(step, 200);
+}
+function disarmSkip() { clearTimeout(armedSkip); armedSkip = null; $('skip-btn').classList.remove('armed'); }
+function skip() {
+  if (busy || done) return;
+  if (!armedSkip) { $('skip-btn').classList.add('armed'); armedSkip = setTimeout(disarmSkip, 3000); return; }
+  disarmSkip();
+  const skipped = store.get('skipped', []); if (!skipped.includes(li)) { skipped.push(li); store.set('skipped', skipped); }
+  saveRecord('skipped');
+  if (li < LEVELS.length - 1) loadLevel(li + 1);
+  else { finished = true; render(); }
+}
+
+// ---- input: follow the line with a finger (decided in the input prototype)
+const pos = ev => { const r = svg.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+svg.addEventListener('pointerdown', ev => {
+  if (busy || done) return;
+  const p = pos(ev);
+  if (cur == null) {
+    let best = null, bd = Infinity;
+    V.forEach((q, v) => { const d = dist(p, q); if (d <= R && d < bd) { bd = d; best = v; } });
+    if (best == null) return;
+    chooseStart(best);
+  } else if (dist(p, V[cur]) > R) {
+    const h = $('here'); if (h) { h.classList.remove('nudge'); void h.getBoundingClientRect(); h.classList.add('nudge'); }
+    return;
+  }
+  dragging = true; prog.clear(); active = null;
+  svg.setPointerCapture(ev.pointerId); render();
+});
+svg.addEventListener('pointermove', ev => {
+  if (!dragging || busy || done) return;
+  const p = pos(ev);
+  active = null; let bestT = 0;
+  for (const e of incident(cur)) {
+    const { t, d } = nearest(poly(e, cur), p), was = prog.get(e) || 0;
+    if (d > TOL) continue;
+    if (t <= was + 0.35) prog.set(e, Math.max(was, t));
+    if ((prog.get(e) || 0) > bestT) { bestT = prog.get(e); active = e; }
+  }
+  if (active != null && (bestT >= 0.9 || (bestT >= 0.5 && dist(p, V[other(active, cur)]) <= R * 0.8))) commit(active);
+  render();
+});
+const endDrag = () => { if (!dragging) return; dragging = false; prog.clear(); active = null; render(); };
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+
+// ---- parent panel
+function renderPanel() {
+  const cleared = store.get('cleared', []), skipped = store.get('skipped', []);
+  $('jump').innerHTML = LEVELS.map((_, i) => `<button data-i="${i}" class="${cleared.includes(i) ? 'cleared' : skipped.includes(i) ? 'skipped' : ''}${i === li ? ' now' : ''}">${i + 1}</button>`).join('');
+  const rows = records.slice(-60).reverse().map(r => `<tr><td>${r.level}（${r.figure}${r.shape ? ' ' + r.shape : ''}）</td><td>${r.result === 'cleared' ? '過關' : r.result === 'skipped' ? '跳過' : '離開'}</td><td>${r.seconds} 秒</td><td>${r.undo}</td><td>${r.restart}</td><td>${r.hint}</td><td>${r.goodStarts}/${r.starts}</td></tr>`).join('');
+  $('results').innerHTML = `<thead><tr><th>關卡</th><th>結果</th><th>花多久</th><th>退一步</th><th>重來</th><th>提示</th><th>選對起點</th></tr></thead><tbody>${rows || '<tr><td colspan="7">還沒有紀錄</td></tr>'}</tbody>`;
+}
+$('gear').onclick = () => { renderPanel(); $('panel').hidden = false; };
+$('close-panel').onclick = () => { $('panel').hidden = true; };
+$('jump').addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  if (!done) saveRecord('left');
+  loadLevel(+b.dataset.i); $('panel').hidden = true;
+});
+for (const id of ['kid-name', 'kid-age']) {
+  $(id).value = store.get(id, '');
+  $(id).addEventListener('change', () => store.set(id, $(id).value));
+}
+
+$('undo-btn').onclick = undo;
+$('restart-btn').onclick = restart;
+$('hint-btn').onclick = hint;
+$('skip-btn').onclick = skip;
+$('next-btn').onclick = () => { if (li < LEVELS.length - 1) loadLevel(li + 1); };
+new ResizeObserver(() => { layout(); render(); }).observe(svg);
+loadLevel(li);
+
+(async () => {
+  db = window.claude ? await window.claude.use('db') : null;
+  $('db-status').textContent = db ? '紀錄存放：每過一關或跳過一關，紀錄會自動傳回去，也留一份在這台 iPad 上。' : '紀錄存放：連不上，紀錄只留在這台 iPad 上，下面的表格就是全部的紀錄。';
+})();
+</script>
