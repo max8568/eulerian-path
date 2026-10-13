@@ -65,6 +65,24 @@ function chaptersScreen() {
   root.querySelectorAll('.chapter:not(.locked)').forEach(b => b.onclick = () => nav.levels(+b.dataset.ch));
 }
 
+// a small drawing of the level's figure, so the level can be told apart by its picture;
+// like the game, it is centred on the figure's own extent (curves included) and fills the space
+function thumb(fig) {
+  const xs = [], ys = [];
+  const add = ([x, y]) => { xs.push(x); ys.push(y); };
+  fig.pts.forEach(add);
+  const d = fig.edges.map(([a, b, bulge = 0]) => {
+    const A = fig.pts[a], B = fig.pts[b];
+    if (!bulge) return `M${A}L${B}`;
+    const C = [(A[0] + B[0]) / 2 - (B[1] - A[1]) * bulge, (A[1] + B[1]) / 2 + (B[0] - A[0]) * bulge];
+    for (let i = 1; i < 8; i++) { const t = i / 8, u = 1 - t; add([u*u*A[0] + 2*u*t*C[0] + t*t*B[0], u*u*A[1] + 2*u*t*C[1] + t*t*B[1]]); }
+    return `M${A}Q${C} ${B}`;
+  }).join('');
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const side = Math.max(x1 - x0, y1 - y0), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  return `<svg class="thumb" viewBox="${cx - side / 2} ${cy - side / 2} ${side} ${side}" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
 // ---- levels of one chapter: 5 columns × 10 rows
 function levelsScreen(chapter) {
   const first = firstLevel(chapter), newest = store.newestLevel();
@@ -72,7 +90,7 @@ function levelsScreen(chapter) {
     const l = first + i;
     const state = store.isCleared(l) ? 'cleared' : store.isSkipped(l) ? 'skipped' : l === newest ? 'newest' : store.isUnlocked(l) ? 'open' : 'locked';
     const mark = state === 'cleared' ? '★' : state === 'skipped' ? '☆' : state === 'locked' ? ICONS.lock : '';
-    return `<button class="cell ${state}" data-level="${l}" ${state === 'locked' ? 'disabled' : ''} aria-label="Level ${l}"><span class="num">${l}</span><span class="mark">${mark}</span></button>`;
+    return `<button class="cell ${state}" data-level="${l}" ${state === 'locked' ? 'disabled' : ''} aria-label="Level ${l}">${thumb(LEVELS[l - 1])}<span class="num">${l}</span><span class="mark">${mark}</span></button>`;
   }).join('');
   root.innerHTML = `
     <div class="screen menu" style="--chapter:${chapterColor(chapter)}">

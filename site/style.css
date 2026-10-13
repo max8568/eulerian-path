@@ -51,9 +51,13 @@ button:disabled { cursor: default; }
 .chapter.locked { background: #CFC6D3; }
 .cells { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; padding: 8px 16px 32px; max-width: 640px; width: 100%; margin: 0 auto; }
 .cell { aspect-ratio: 1; border: 0; border-radius: 18px; background: var(--btn); box-shadow: 0 4px 0 var(--btn-shadow); display: grid; place-items: center; align-content: center; gap: 0; font-weight: 600; position: relative; }
-.cell .num { font-size: 20px; font-variant-numeric: tabular-nums; }
-.cell .mark { font-size: 20px; line-height: 1; min-height: 20px; color: var(--chapter); }
-.cell .mark svg { width: 18px; height: 18px; }
+.cell .num { position: absolute; top: 6px; left: 9px; font-size: 15px; line-height: 1; font-variant-numeric: tabular-nums; }
+.cell .mark { position: absolute; top: 5px; right: 7px; font-size: 16px; line-height: 1; color: var(--chapter); }
+.cell .mark svg { width: 15px; height: 15px; }
+.cell .thumb { width: 54%; height: 54%; margin-top: 12%; overflow: visible; }
+.cell .thumb path { fill: none; stroke: var(--ink); stroke-width: 2.5px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.cell.cleared .thumb path { stroke: #fff; }
+.cell.locked .thumb path { stroke: #C9BECD; }
 .cell.cleared { background: var(--chapter); color: #fff; text-shadow: 0 1px 2px rgba(74, 59, 82, .45); }
 .cell.cleared .mark { color: #fff; }
 .cell.newest { transform: scale(1.12); outline: 4px solid var(--chapter); z-index: 1; animation: newest 1.2s ease-in-out infinite; }
