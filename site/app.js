@@ -143,6 +143,7 @@ function parentPanel(onClose) {
         <section>
           <h3>試玩紀錄（${active.animal}，最近 ${recs.length} 筆，共 ${active.records.length} 筆）</h3>
           <button class="text" data-act="copy">複製全部紀錄</button>
+          <button class="text" data-act="save">存成檔案</button>
           <span class="copied" hidden>已複製</span>
           <textarea class="copy-fallback" hidden readonly></textarea>
           <div class="table-wrap"><table>
@@ -168,6 +169,7 @@ function parentPanel(onClose) {
     const act = t.dataset.act;
     if (act === 'sound') { store.setSound(!store.soundOn()); render(); }
     else if (act === 'copy') copyRecords();
+    else if (act === 'save') saveRecords();
     else if (act === 'close') { panel.remove(); onClose(); }
   });
 
@@ -184,12 +186,28 @@ function parentPanel(onClose) {
   panel.addEventListener('pointerleave', cancelHold);
   panel.addEventListener('pointercancel', cancelHold);
 
-  function copyRecords() {
+  function recordsText() {
     const p = store.profile();
-    const text = JSON.stringify({ animal: p.animal, exportedAt: new Date().toISOString(), records: p.records });
+    return JSON.stringify({ animal: p.animal, exportedAt: new Date().toISOString(), records: p.records });
+  }
+  function copyRecords() {
+    const text = recordsText();
     const ok = () => { panel.querySelector('.copied').hidden = false; };
     const fallback = () => { const ta = panel.querySelector('.copy-fallback'); ta.hidden = false; ta.value = text; ta.select(); };
     try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (e) { fallback(); }
+  }
+  // Copied records have arrived cut off at 10,000 characters somewhere between the phone and the
+  // paste, so they can also go out as a file: through the phone's share menu, or as a download.
+  // .txt rather than .json: Chrome on Android only shares a short list of file types.
+  function saveRecords() {
+    const file = new File([recordsText()], `eulerian-path-records-${new Date().toISOString().slice(0, 10)}.txt`, { type: 'text/plain' });
+    const download = () => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    };
+    if (navigator.canShare?.({ files: [file] })) navigator.share({ files: [file] }).catch(e => { if (e.name !== 'AbortError') download(); });
+    else download();
   }
 }
 
