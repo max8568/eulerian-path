@@ -1,5 +1,6 @@
 // The game screen: draw every line once by following it with a finger (SPEC.md §2, §3).
 import { solvable, validStarts, nextEdge, otherEnd, undrawnAt, stepsBackToSolvable } from './euler.js';
+import { follower } from './follow.js';
 import { chapterColor, chapterName, chapterEmoji, LAST_LEVEL } from './theme.js';
 import { markCleared, markSkipped, addRecord, profile } from './store.js';
 import { sounds } from './sound.js';
@@ -44,7 +45,8 @@ export function gameScreen(root, levelData, nav) {
   // ---- state
   let V = [], E = [];                              // screen geometry of points and lines
   let drawn = new Array(m).fill(false), hist = [], cur = null;
-  let dragging = false, prog = new Map(), active = null;
+  let dragging = false;
+  const track = follower(TOL);
   let busy = false, cooling = false, done = false, wasStuck = false;
   let armedSkip = null, alive = true;
   const timers = new Set();
@@ -125,10 +127,9 @@ export function gameScreen(root, levelData, nav) {
     const gE = $('.g-edges'), gP = $('.g-part'), gV = $('.g-verts');
     gE.textContent = gP.textContent = gV.textContent = '';
     E.forEach((e, i) => el('path', { d: e.d, class: drawn[i] ? 'e-done' : 'e-todo' }, gE));
-    // the line drawn furthest so far stays on screen even while the finger strays off it
-    let showE = null, showT = 0;
-    for (const [e, t] of prog) if (t > showT) { showT = t; showE = e; }
-    if (dragging && cur != null && showE != null) el('polyline', { points: ptsAttr(partial(poly(showE, cur), showT)), class: 'e-part' }, gP);
+    // the line being drawn stays on screen even while the finger strays off it
+    const showE = track.last;
+    if (dragging && cur != null && showE != null) el('polyline', { points: ptsAttr(partial(poly(showE, cur), track.progress(showE))), class: 'e-part' }, gP);
     V.forEach((p, v) => {
       if (v === cur) {
         if (!done) el('circle', { cx: p[0], cy: p[1], r: 16, class: 'ring' }, gV);
@@ -162,7 +163,7 @@ export function gameScreen(root, levelData, nav) {
   }
   function commit(e) {
     drawn[e] = true; hist.push({ e, from: cur }); cur = otherEnd(fig, e, cur);
-    prog.clear(); active = null;
+    track.reset();
     sounds.line(hist.length - 1);
     try { navigator.vibrate && navigator.vibrate(12); } catch (x) { /* not supported */ }
   }
@@ -245,25 +246,20 @@ export function gameScreen(root, levelData, nav) {
       if (here) { here.classList.remove('nudge'); void here.getBoundingClientRect(); here.classList.add('nudge'); }
       return;
     }
-    dragging = true; prog.clear(); active = null;
+    dragging = true; track.reset();
     try { svg.setPointerCapture(ev.pointerId); } catch (x) { /* synthetic events */ }
     render();
   });
   svg.addEventListener('pointermove', ev => {
     if (!dragging || busy || done) return;
     const p = pos(ev);
-    active = null; let bestT = 0;
-    for (const e of undrawnAt(fig, drawn, cur)) {
-      const { t, d } = nearest(poly(e, cur), p), was = prog.get(e) || 0;
-      if (d > TOL) continue; // off the line: keep what is drawn so far and wait for the finger to come back
-      if (t <= was + 0.35) prog.set(e, Math.max(was, t));
-      if ((prog.get(e) || 0) > bestT) { bestT = prog.get(e); active = e; }
-    }
+    const active = track.move(undrawnAt(fig, drawn, cur).map(e => ({ e, ...nearest(poly(e, cur), p) })));
+    const bestT = active == null ? 0 : track.progress(active);
     if (active != null && (bestT >= 0.9 || (bestT >= 0.5 && dist(p, V[otherEnd(fig, active, cur)]) <= R * 0.8))) commit(active);
     render();
   });
   // the star and confetti wait until the finger lifts after the last line
-  const endDrag = () => { if (!dragging) return; dragging = false; prog.clear(); active = null; if (allDrawn()) win(); render(); };
+  const endDrag = () => { if (!dragging) return; dragging = false; track.reset(); if (allDrawn()) win(); render(); };
   svg.addEventListener('pointerup', endDrag);
   svg.addEventListener('pointercancel', endDrag);
 

@@ -4,7 +4,7 @@
 // takes longer than 3 seconds, the copy on the device is used.
 const CACHE = 'yibihua';
 const FILES = [
-  './', 'index.html', 'style.css', 'app.js', 'game.js', 'euler.js', 'store.js', 'sound.js', 'theme.js', 'icons.js',
+  './', 'index.html', 'style.css', 'app.js', 'game.js', 'follow.js', 'euler.js', 'store.js', 'sound.js', 'theme.js', 'icons.js',
   'version.js', 'levels.json', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
 ];
 const WAIT = 3000;
